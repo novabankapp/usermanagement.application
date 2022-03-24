@@ -1,5 +1,7 @@
 package commands
 
+import "github.com/novabankapp/usermanagement.application/dtos"
+
 type UserCommands struct {
 	CreateUser CreateUserCmdHandler
 	UpdateUser UpdateUserCmdHandler
@@ -17,10 +19,13 @@ func NewUserCommands(createUser CreateUserCmdHandler,
 }
 
 type CreateUserCommand struct {
+	dto *dtos.CreateUserDto
 }
 
-func NewCreateUserCommand() *CreateUserCommand {
-	return &CreateUserCommand{}
+func NewCreateUserCommand(dto *dtos.CreateUserDto) *CreateUserCommand {
+	return &CreateUserCommand{
+		dto,
+	}
 }
 
 type UpdateUserCommand struct {
