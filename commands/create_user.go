@@ -1,4 +1,4 @@
-package handlers
+package commands
 
 import (
 	"bytes"
@@ -7,38 +7,41 @@ import (
 	"github.com/novabankapp/golang.common.infrastructure/kafka"
 	kafkaClient "github.com/novabankapp/golang.common.infrastructure/kafka"
 	"github.com/novabankapp/golang.common.infrastructure/logger"
-	"github.com/novabankapp/usermanagement.application/commands"
 	"github.com/novabankapp/usermanagement.data/domain"
 	"github.com/novabankapp/usermanagement.data/repositories"
 	kafka_go "github.com/segmentio/kafka-go"
 	"time"
 )
 
-type DeleteUserCmdHandler interface {
-	Handle(ctx context.Context, command *commands.DeleteUserCommand) error
+type CreateUserCmdHandler interface {
+	Handle(ctx context.Context, command *CreateUserCommand) error
 }
-type deleteUserCmdHandler struct {
+type createUserCmdHandler struct {
 	log           logger.Logger
 	cfg           *kafka.Config
 	repo          repositories.UserRepository
 	kafkaProducer kafkaClient.Producer
 }
 
-func NewDeleteUserHandler(log logger.Logger, cfg *kafka.Config,
-	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) DeleteUserCmdHandler {
-	return &deleteUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
+func NewCreateUserHandler(log logger.Logger, cfg *kafka.Config,
+	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) CreateUserCmdHandler {
+	return &createUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
 }
-func (c *deleteUserCmdHandler) Handle(ctx context.Context, command *commands.DeleteUserCommand) error {
+func (c *createUserCmdHandler) Handle(ctx context.Context, command *CreateUserCommand) error {
 	userDto := domain.User{}
-	c.repo.Delete(ctx, userDto)
+
+	user, err := c.repo.Create(ctx, userDto)
+	if err != nil {
+		return err
+	}
 	res := new(bytes.Buffer)
 	json.NewEncoder(res).Encode(userDto)
 	msgBytes := res.Bytes()
 	message := kafka_go.Message{
-		Topic: c.cfg.Topics.UserDeleted.TopicName,
+		Topic: c.cfg.Topics.UserCreated.TopicName,
 		Value: msgBytes,
 		Time:  time.Now().UTC(),
-		Key:   []byte(userDto.ID),
+		Key:   []byte(*user),
 	}
 
 	return c.kafkaProducer.PublishMessage(ctx, message)

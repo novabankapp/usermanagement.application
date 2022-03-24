@@ -1,5 +1,21 @@
 package commands
 
+type UserCommands struct {
+	CreateUser CreateUserCmdHandler
+	UpdateUser UpdateUserCmdHandler
+	DeleteUser DeleteUserCmdHandler
+}
+
+func NewUserCommands(createUser CreateUserCmdHandler,
+	updateUser UpdateUserCmdHandler,
+	deleteUser DeleteUserCmdHandler) *UserCommands {
+	return &UserCommands{
+		createUser,
+		updateUser,
+		deleteUser,
+	}
+}
+
 type CreateUserCommand struct {
 }
 

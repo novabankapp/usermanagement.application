@@ -1,4 +1,4 @@
-package handlers
+package commands
 
 import (
 	"bytes"
@@ -7,35 +7,34 @@ import (
 	"github.com/novabankapp/golang.common.infrastructure/kafka"
 	kafkaClient "github.com/novabankapp/golang.common.infrastructure/kafka"
 	"github.com/novabankapp/golang.common.infrastructure/logger"
-	"github.com/novabankapp/usermanagement.application/commands"
 	"github.com/novabankapp/usermanagement.data/domain"
 	"github.com/novabankapp/usermanagement.data/repositories"
 	kafka_go "github.com/segmentio/kafka-go"
 	"time"
 )
 
-type UpdateUserCmdHandler interface {
-	Handle(ctx context.Context, command *commands.UpdateUserCommand) error
+type DeleteUserCmdHandler interface {
+	Handle(ctx context.Context, command *DeleteUserCommand) error
 }
-type updateUserCmdHandler struct {
+type deleteUserCmdHandler struct {
 	log           logger.Logger
 	cfg           *kafka.Config
 	repo          repositories.UserRepository
 	kafkaProducer kafkaClient.Producer
 }
 
-func NewUpdateUserHandler(log logger.Logger, cfg *kafka.Config,
-	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) UpdateUserCmdHandler {
-	return &updateUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
+func NewDeleteUserHandler(log logger.Logger, cfg *kafka.Config,
+	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) DeleteUserCmdHandler {
+	return &deleteUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
 }
-func (c *updateUserCmdHandler) Handle(ctx context.Context, command *commands.UpdateUserCommand) error {
+func (c *deleteUserCmdHandler) Handle(ctx context.Context, command *DeleteUserCommand) error {
 	userDto := domain.User{}
-	c.repo.Update(ctx, userDto)
+	c.repo.Delete(ctx, userDto)
 	res := new(bytes.Buffer)
 	json.NewEncoder(res).Encode(userDto)
 	msgBytes := res.Bytes()
 	message := kafka_go.Message{
-		Topic: c.cfg.Topics.UserUpdated.TopicName,
+		Topic: c.cfg.Topics.UserDeleted.TopicName,
 		Value: msgBytes,
 		Time:  time.Now().UTC(),
 		Key:   []byte(userDto.ID),
