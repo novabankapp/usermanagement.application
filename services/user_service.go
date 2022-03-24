@@ -9,15 +9,13 @@ import (
 	"github.com/novabankapp/usermanagement.data/repositories"
 )
 
-type UserService interface {
-}
-type userService struct {
+type UserService struct {
 	Commands *commands.UserCommands
 	Queries  *queries.UserQueries
 }
 
 func NewUserService(log logger.Logger, cfg *kafka.Config,
-	kafkaProducer kafkaClient.Producer, repo repositories.UserRepository) UserService {
+	kafkaProducer kafkaClient.Producer, repo repositories.UserRepository) *UserService {
 
 	createUserHandler := commands.NewCreateUserHandler(log, cfg, repo, kafkaProducer)
 	updateUserHandler := commands.NewUpdateUserHandler(log, cfg, repo, kafkaProducer)
@@ -29,5 +27,5 @@ func NewUserService(log logger.Logger, cfg *kafka.Config,
 	usersCommands := commands.NewUserCommands(createUserHandler, updateUserHandler, deleteUserHandler)
 	usersQueries := queries.NewUsersQueries(getUserByIdHandler, getUsersHandler)
 
-	return &userService{Commands: usersCommands, Queries: usersQueries}
+	return &UserService{Commands: usersCommands, Queries: usersQueries}
 }
