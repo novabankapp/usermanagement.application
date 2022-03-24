@@ -5,8 +5,8 @@ import (
 	"github.com/novabankapp/golang.common.infrastructure/kafka"
 	kafkaClient "github.com/novabankapp/golang.common.infrastructure/kafka"
 	"github.com/novabankapp/golang.common.infrastructure/logger"
-	"github.com/novabankapp/usermanagement/usermanagement.application/commands"
-	"github.com/novabankapp/usermanagement/usermanagement.data/repositories"
+	"github.com/novabankapp/usermanagement.application/commands"
+	"github.com/novabankapp/usermanagement.data/repositories"
 )
 
 type CreateUserCmdHandler interface {

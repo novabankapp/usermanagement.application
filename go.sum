@@ -1,0 +1,4 @@
+github.com/novabankapp/golang.common.infrastructure v1.1.0 h1:AHRAQPgraABL2IhblFwh/N8CgIdSV5ecs53YiCJAuSo=
+github.com/novabankapp/golang.common.infrastructure v1.1.0/go.mod h1:D0m45/mutGZeWfXR6cQo40gL62k7sKwCQ8ftuInHIH4=
+github.com/novabankapp/usermanagement.data v1.1.0 h1:ozBQLviCifNtdjjjFQSLjeshvkuqNmWEq6dYUHxGR7Q=
+github.com/novabankapp/usermanagement.data v1.1.0/go.mod h1:n58264H2A3BDCCzIjGumTl/0T18rZlP0cZtR5BvcrcM=
