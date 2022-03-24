@@ -14,35 +14,31 @@ import (
 	"time"
 )
 
-type CreateUserCmdHandler interface {
-	Handle(ctx context.Context, command *commands.CreateUserCommand) error
+type DeleteUserCmdHandler interface {
+	Handle(ctx context.Context, command *commands.DeleteUserCommand) error
 }
-type createUserCmdHandler struct {
+type deleteUserCmdHandler struct {
 	log           logger.Logger
 	cfg           *kafka.Config
 	repo          repositories.UserRepository
 	kafkaProducer kafkaClient.Producer
 }
 
-func NewCreateUserHandler(log logger.Logger, cfg *kafka.Config,
-	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) CreateUserCmdHandler {
-	return &createUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
+func NewDeleteUserHandler(log logger.Logger, cfg *kafka.Config,
+	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) DeleteUserCmdHandler {
+	return &deleteUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
 }
-func (c *createUserCmdHandler) Handle(ctx context.Context, command *commands.CreateUserCommand) error {
+func (c *deleteUserCmdHandler) Handle(ctx context.Context, command *commands.DeleteUserCommand) error {
 	userDto := domain.User{}
-
-	user, err := c.repo.Create(ctx, userDto)
-	if err != nil {
-		return err
-	}
+	c.repo.Delete(ctx, userDto)
 	res := new(bytes.Buffer)
 	json.NewEncoder(res).Encode(userDto)
 	msgBytes := res.Bytes()
 	message := kafka_go.Message{
-		Topic: c.cfg.Topics.UserCreated.TopicName,
+		Topic: c.cfg.Topics.UserDeleted.TopicName,
 		Value: msgBytes,
 		Time:  time.Now().UTC(),
-		Key:   []byte(*user),
+		Key:   []byte(userDto.ID),
 	}
 
 	return c.kafkaProducer.PublishMessage(ctx, message)

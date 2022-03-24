@@ -14,35 +14,31 @@ import (
 	"time"
 )
 
-type CreateUserCmdHandler interface {
-	Handle(ctx context.Context, command *commands.CreateUserCommand) error
+type UpdateUserCmdHandler interface {
+	Handle(ctx context.Context, command *commands.UpdateUserCommand) error
 }
-type createUserCmdHandler struct {
+type updateUserCmdHandler struct {
 	log           logger.Logger
 	cfg           *kafka.Config
 	repo          repositories.UserRepository
 	kafkaProducer kafkaClient.Producer
 }
 
-func NewCreateUserHandler(log logger.Logger, cfg *kafka.Config,
-	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) CreateUserCmdHandler {
-	return &createUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
+func NewUpdateUserHandler(log logger.Logger, cfg *kafka.Config,
+	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) UpdateUserCmdHandler {
+	return &updateUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
 }
-func (c *createUserCmdHandler) Handle(ctx context.Context, command *commands.CreateUserCommand) error {
+func (c *updateUserCmdHandler) Handle(ctx context.Context, command *commands.UpdateUserCommand) error {
 	userDto := domain.User{}
-
-	user, err := c.repo.Create(ctx, userDto)
-	if err != nil {
-		return err
-	}
+	c.repo.Update(ctx, userDto)
 	res := new(bytes.Buffer)
 	json.NewEncoder(res).Encode(userDto)
 	msgBytes := res.Bytes()
 	message := kafka_go.Message{
-		Topic: c.cfg.Topics.UserCreated.TopicName,
+		Topic: c.cfg.Topics.UserUpdated.TopicName,
 		Value: msgBytes,
 		Time:  time.Now().UTC(),
-		Key:   []byte(*user),
+		Key:   []byte(userDto.ID),
 	}
 
 	return c.kafkaProducer.PublishMessage(ctx, message)
