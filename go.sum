@@ -1,3 +1,5 @@
+github.com/golang-jwt/jwt/v4 v4.4.0 h1:EmVIxB5jzbllGIjiCV5JG4VylbK3KE400tLGLI1cdfU=
+github.com/golang-jwt/jwt/v4 v4.4.0/go.mod h1:/xlHOz8bRuivTWchD4jCa+NbatV+wEUSzwAxVc6locg=
 github.com/novabankapp/golang.common.infrastructure v1.1.0 h1:AHRAQPgraABL2IhblFwh/N8CgIdSV5ecs53YiCJAuSo=
 github.com/novabankapp/golang.common.infrastructure v1.1.0/go.mod h1:D0m45/mutGZeWfXR6cQo40gL62k7sKwCQ8ftuInHIH4=
 github.com/novabankapp/golang.common.infrastructure v1.3.0 h1:2+5TiB4M1Gt/Sz1q2CuYwPH+DWzCrH+DxshCTY0BifA=
