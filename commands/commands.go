@@ -19,25 +19,31 @@ func NewUserCommands(createUser CreateUserCmdHandler,
 }
 
 type CreateUserCommand struct {
-	dto *dtos.CreateUserDto
+	dto dtos.CreateUserDto
 }
 
-func NewCreateUserCommand(dto *dtos.CreateUserDto) *CreateUserCommand {
+func NewCreateUserCommand(dto dtos.CreateUserDto) *CreateUserCommand {
 	return &CreateUserCommand{
 		dto,
 	}
 }
 
 type UpdateUserCommand struct {
+	dto dtos.UpdateUserDto
 }
 
-func NewUpdateUserCommand() *UpdateUserCommand {
-	return &UpdateUserCommand{}
+func NewUpdateUserCommand(dto dtos.UpdateUserDto) *UpdateUserCommand {
+	return &UpdateUserCommand{
+		dto,
+	}
 }
 
 type DeleteUserCommand struct {
+	dto dtos.DeleteUserDto
 }
 
-func NewDeleteUserCommand() *DeleteUserCommand {
-	return &DeleteUserCommand{}
+func NewDeleteUserCommand(dto dtos.DeleteUserDto) *DeleteUserCommand {
+	return &DeleteUserCommand{
+		dto,
+	}
 }

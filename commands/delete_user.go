@@ -14,7 +14,7 @@ import (
 )
 
 type DeleteUserCmdHandler interface {
-	Handle(ctx context.Context, command *DeleteUserCommand) error
+	Handle(ctx context.Context, command *DeleteUserCommand) (bool, error)
 }
 type deleteUserCmdHandler struct {
 	log           logger.Logger
@@ -27,9 +27,12 @@ func NewDeleteUserHandler(log logger.Logger, cfg *kafka.Config,
 	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) DeleteUserCmdHandler {
 	return &deleteUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
 }
-func (c *deleteUserCmdHandler) Handle(ctx context.Context, command *DeleteUserCommand) error {
+func (c *deleteUserCmdHandler) Handle(ctx context.Context, command *DeleteUserCommand) (bool, error) {
 	userDto := domain.User{}
-	c.repo.Delete(ctx, userDto)
+	result, err := c.repo.Delete(ctx, userDto)
+	if err != nil {
+		return false, err
+	}
 	res := new(bytes.Buffer)
 	json.NewEncoder(res).Encode(userDto)
 	msgBytes := res.Bytes()
@@ -40,5 +43,6 @@ func (c *deleteUserCmdHandler) Handle(ctx context.Context, command *DeleteUserCo
 		Key:   []byte(userDto.ID),
 	}
 
-	return c.kafkaProducer.PublishMessage(ctx, message)
+	error := c.kafkaProducer.PublishMessage(ctx, message)
+	return result, error
 }

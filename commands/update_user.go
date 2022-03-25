@@ -14,7 +14,7 @@ import (
 )
 
 type UpdateUserCmdHandler interface {
-	Handle(ctx context.Context, command *UpdateUserCommand) error
+	Handle(ctx context.Context, command *UpdateUserCommand) (bool, error)
 }
 type updateUserCmdHandler struct {
 	log           logger.Logger
@@ -27,9 +27,12 @@ func NewUpdateUserHandler(log logger.Logger, cfg *kafka.Config,
 	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) UpdateUserCmdHandler {
 	return &updateUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
 }
-func (c *updateUserCmdHandler) Handle(ctx context.Context, command *UpdateUserCommand) error {
+func (c *updateUserCmdHandler) Handle(ctx context.Context, command *UpdateUserCommand) (bool, error) {
 	userDto := domain.User{}
-	c.repo.Update(ctx, userDto)
+	result, err := c.repo.Update(ctx, userDto)
+	if err != nil {
+		return false, err
+	}
 	res := new(bytes.Buffer)
 	json.NewEncoder(res).Encode(userDto)
 	msgBytes := res.Bytes()
@@ -40,5 +43,6 @@ func (c *updateUserCmdHandler) Handle(ctx context.Context, command *UpdateUserCo
 		Key:   []byte(userDto.ID),
 	}
 
-	return c.kafkaProducer.PublishMessage(ctx, message)
+	error := c.kafkaProducer.PublishMessage(ctx, message)
+	return result, error
 }

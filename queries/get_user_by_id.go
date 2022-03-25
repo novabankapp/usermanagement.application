@@ -24,7 +24,7 @@ func NewGetUserByIdHandler(log logger.Logger, cfg *kafka.Config,
 
 func (q *getUserByIdHandler) Handle(ctx context.Context, query *GetUserByIdQuery) (*dtos.GetUserByIdResponse, error) {
 
-	user, err := q.repo.GetUser(ctx, query.UserID.String())
+	user, err := q.repo.GetUser(ctx, query.UserID)
 	if err != nil {
 		return nil, err
 	}

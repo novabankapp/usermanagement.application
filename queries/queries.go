@@ -1,7 +1,5 @@
 package queries
 
-import "github.com/google/uuid"
-
 type UserQueries struct {
 	GetUserById GetUserByIdHandler
 	GetUsers    GetUsersHandler
@@ -12,10 +10,10 @@ func NewUsersQueries(getUserById GetUserByIdHandler, getUsers GetUsersHandler) *
 }
 
 type GetUserByIdQuery struct {
-	UserID uuid.UUID `json:"userId" validate:"required,gte=0,lte=255"`
+	UserID string `json:"userId" validate:"required,gte=0,lte=255"`
 }
 
-func NewGetUserByIdQuery(userID uuid.UUID) *GetUserByIdQuery {
+func NewGetUserByIdQuery(userID string) *GetUserByIdQuery {
 	return &GetUserByIdQuery{UserID: userID}
 }
 
@@ -26,6 +24,6 @@ type GetUsersQuery struct {
 	OrderBy  string `json:"orderBy"`
 }
 
-func NewSearchProductQuery(query string, page int, pageSize int, orderBy string) *GetUsersQuery {
+func NewGetUsersQuery(query string, page int, pageSize int, orderBy string) *GetUsersQuery {
 	return &GetUsersQuery{Query: query, Page: page, PageSize: pageSize, OrderBy: orderBy}
 }

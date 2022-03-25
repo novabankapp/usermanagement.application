@@ -14,7 +14,7 @@ import (
 )
 
 type CreateUserCmdHandler interface {
-	Handle(ctx context.Context, command *CreateUserCommand) error
+	Handle(ctx context.Context, command *CreateUserCommand) (*string, error)
 }
 type createUserCmdHandler struct {
 	log           logger.Logger
@@ -27,12 +27,12 @@ func NewCreateUserHandler(log logger.Logger, cfg *kafka.Config,
 	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) CreateUserCmdHandler {
 	return &createUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
 }
-func (c *createUserCmdHandler) Handle(ctx context.Context, command *CreateUserCommand) error {
+func (c *createUserCmdHandler) Handle(ctx context.Context, command *CreateUserCommand) (*string, error) {
 	userDto := domain.User{}
 
 	user, err := c.repo.Create(ctx, userDto)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	res := new(bytes.Buffer)
 	json.NewEncoder(res).Encode(userDto)
@@ -44,5 +44,6 @@ func (c *createUserCmdHandler) Handle(ctx context.Context, command *CreateUserCo
 		Key:   []byte(*user),
 	}
 
-	return c.kafkaProducer.PublishMessage(ctx, message)
+	error := c.kafkaProducer.PublishMessage(ctx, message)
+	return user, error
 }
