@@ -2,13 +2,14 @@ package services
 
 import (
 	"context"
-	"github.com/novabankapp/golang.common.infrastructure/kafka"
-	kafkaClient "github.com/novabankapp/golang.common.infrastructure/kafka"
-	"github.com/novabankapp/golang.common.infrastructure/logger"
+
+	"github.com/novabankapp/common.infrastructure/kafka"
+	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
+	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/commands"
 	"github.com/novabankapp/usermanagement.application/dtos"
 	"github.com/novabankapp/usermanagement.application/queries"
-	"github.com/novabankapp/usermanagement.data/repositories"
+	"github.com/novabankapp/usermanagement.data/repositories/users"
 )
 
 type UserService interface {
@@ -19,13 +20,13 @@ type UserService interface {
 	GetUsers(ctx context.Context, query string, orderBy string, page int, pageSize int) (*dtos.GetUsersResponse, error)
 }
 type userService struct {
-	Repo     repositories.UserRepository
+	Repo     users.UserRepository
 	Commands *commands.UserCommands
 	Queries  *queries.UserQueries
 }
 
 func NewUserService(log logger.Logger, cfg *kafka.Config,
-	kafkaProducer kafkaClient.Producer, repo repositories.UserRepository) UserService {
+	kafkaProducer kafkaClient.Producer, repo users.UserRepository) UserService {
 
 	createUserHandler := commands.NewCreateUserHandler(log, cfg, repo, kafkaProducer)
 	updateUserHandler := commands.NewUpdateUserHandler(log, cfg, repo, kafkaProducer)

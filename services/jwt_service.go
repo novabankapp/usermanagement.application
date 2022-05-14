@@ -19,12 +19,14 @@ type authCustomClaims struct {
 type jwtServices struct {
 	secretKey string
 	issuer    string
+	timeOut   int
 }
 
-func NewJWTAuthService(secretKey string, issuer string) JWTService {
+func NewJWTAuthService(secretKey string, issuer string, timeOut int) JWTService {
 	return &jwtServices{
 		secretKey: secretKey,
 		issuer:    issuer,
+		timeOut:   timeOut,
 	}
 }
 
@@ -33,7 +35,7 @@ func (service *jwtServices) GenerateToken(email string, isUser bool) string {
 		Name: email,
 		User: isUser,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(time.Hour * 48)},
+			ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(time.Hour * time.Duration(service.timeOut))},
 			Issuer:    service.issuer,
 			IssuedAt:  &jwt.NumericDate{Time: time.Now()},
 		},

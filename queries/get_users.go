@@ -2,10 +2,11 @@ package queries
 
 import (
 	"context"
-	"github.com/novabankapp/golang.common.infrastructure/kafka"
-	"github.com/novabankapp/golang.common.infrastructure/logger"
+
+	"github.com/novabankapp/common.infrastructure/kafka"
+	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/dtos"
-	"github.com/novabankapp/usermanagement.data/repositories"
+	"github.com/novabankapp/usermanagement.data/repositories/users"
 )
 
 type GetUsersHandler interface {
@@ -14,11 +15,11 @@ type GetUsersHandler interface {
 type getUsersHandler struct {
 	log  logger.Logger
 	cfg  *kafka.Config
-	repo repositories.UserRepository
+	repo users.UserRepository
 }
 
 func NewGetUsersHandler(log logger.Logger, cfg *kafka.Config,
-	repo repositories.UserRepository) GetUsersHandler {
+	repo users.UserRepository) GetUsersHandler {
 	return &getUsersHandler{log: log, cfg: cfg, repo: repo}
 }
 

@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/novabankapp/golang.common.infrastructure/kafka"
-	kafkaClient "github.com/novabankapp/golang.common.infrastructure/kafka"
-	"github.com/novabankapp/golang.common.infrastructure/logger"
-	"github.com/novabankapp/usermanagement.data/domain"
-	"github.com/novabankapp/usermanagement.data/repositories"
-	kafka_go "github.com/segmentio/kafka-go"
 	"time"
+
+	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
+	"github.com/novabankapp/common.infrastructure/logger"
+	"github.com/novabankapp/usermanagement.data/domain/registration"
+	"github.com/novabankapp/usermanagement.data/repositories/users"
+	kafka_go "github.com/segmentio/kafka-go"
 )
 
 type CreateUserCmdHandler interface {
@@ -18,17 +18,17 @@ type CreateUserCmdHandler interface {
 }
 type createUserCmdHandler struct {
 	log           logger.Logger
-	cfg           *kafka.Config
-	repo          repositories.UserRepository
+	cfg           *kafkaClient.Config
+	repo          users.UserRepository
 	kafkaProducer kafkaClient.Producer
 }
 
-func NewCreateUserHandler(log logger.Logger, cfg *kafka.Config,
-	repo repositories.UserRepository, kafkaProducer kafkaClient.Producer) CreateUserCmdHandler {
+func NewCreateUserHandler(log logger.Logger, cfg *kafkaClient.Config,
+	repo users.UserRepository, kafkaProducer kafkaClient.Producer) CreateUserCmdHandler {
 	return &createUserCmdHandler{log: log, cfg: cfg, repo: repo, kafkaProducer: kafkaProducer}
 }
 func (c *createUserCmdHandler) Handle(ctx context.Context, command *CreateUserCommand) (*string, error) {
-	userDto := domain.User{}
+	userDto := registration.User{}
 
 	user, err := c.repo.Create(ctx, userDto)
 	if err != nil {
@@ -38,7 +38,7 @@ func (c *createUserCmdHandler) Handle(ctx context.Context, command *CreateUserCo
 	json.NewEncoder(res).Encode(userDto)
 	msgBytes := res.Bytes()
 	message := kafka_go.Message{
-		Topic: c.cfg.Topics.UserCreated.TopicName,
+		Topic: c.cfg.KafkaTopics.UserCreated.TopicName,
 		Value: msgBytes,
 		Time:  time.Now().UTC(),
 		Key:   []byte(*user),
