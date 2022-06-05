@@ -6,6 +6,7 @@ import (
 	"github.com/novabankapp/common.infrastructure/kafka"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
+	"github.com/novabankapp/common.notifier/sms"
 	registrationcommands "github.com/novabankapp/usermanagement.application/commands/registration"
 	registration_dtos "github.com/novabankapp/usermanagement.application/dtos/registration"
 	registration_handlers "github.com/novabankapp/usermanagement.application/handlers/registration"
@@ -23,6 +24,7 @@ type USSDRegistrationService interface {
 }
 
 type ussdRegistrationService struct {
+	notifier sms.SMSService
 	repo     registration.RegisterRepository
 	authRepo auth_repository.AuthRepository
 	baseRepo baseRepository.PostgresRepository[regDomain.PhoneVerificationCode]
@@ -31,12 +33,14 @@ type ussdRegistrationService struct {
 
 func NewUSSDDRegistrationService(log logger.Logger, cfg *kafka.Config,
 	kafkaProducer kafkaClient.Producer,
+	notifier sms.SMSService,
 	baseRepo baseRepository.PostgresRepository[regDomain.PhoneVerificationCode],
 	repo registration.RegisterRepository,
 	authRepo auth_repository.AuthRepository) USSDRegistrationService {
 	regUserHandler := registration_handlers.NewRegisterUserHandler(log, cfg, repo, authRepo, kafkaProducer)
 	registerCommands := registrationcommands.NewRegistrationCommands(regUserHandler)
 	return &ussdRegistrationService{
+		notifier: notifier,
 		repo:     repo,
 		authRepo: authRepo,
 		baseRepo: baseRepo,
@@ -54,6 +58,8 @@ func (u ussdRegistrationService) Register(ctx context.Context, phoneNumber strin
 	//insert phone verification
 	if result != nil {
 		//To-Do - generate pin and send to phone
+		u.notifier.SendSMS("", phoneNumber, "")
+
 		u.baseRepo.Create(ctx, regDomain.PhoneVerificationCode{
 			Phone:      phoneNumber,
 			Used:       false,
@@ -95,6 +101,7 @@ func (u ussdRegistrationService) ResendPhoneOTP(ctx context.Context, phoneNumber
 		return false, err
 	}
 	//To-Do - generate pin and send to phone
+	u.notifier.SendSMS("", phoneNumber, "")
 	return true, nil
 
 }
