@@ -25,6 +25,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/klauspost/compress v1.14.2 // indirect
+	github.com/novabankapp/common.notifier v0.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/scylladb/go-reflectx v1.0.1 // indirect
 	github.com/scylladb/gocqlx/v2 v2.7.0 // indirect
@@ -42,3 +43,5 @@ require (
 replace github.com/novabankapp/common.infrastructure v1.3.0 => C:\Projects\golang\github.com\novabankapp\common.infrastructure
 
 replace github.com/novabankapp/usermanagement.data v1.2.0 => C:\Projects\golang\github.com\novabankapp\usermanagement.data
+
+replace github.com/novabankapp/common.notifier v0.1.0 => C:\Projects\golang\github.com\novabankapp\common.notifier

@@ -2,6 +2,7 @@ package registration
 
 import (
 	"context"
+	"errors"
 	"github.com/novabankapp/common.infrastructure/kafka"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
@@ -18,6 +19,7 @@ import (
 type USSDRegistrationService interface {
 	Register(ctx context.Context, phoneNumber string, pin string) (*string, error)
 	VerifyPhone(ctx context.Context, phoneNumber string, otp string) (bool, error)
+	ResendPhoneOTP(ctx context.Context, phoneNumber string) (bool, error)
 }
 
 type ussdRegistrationService struct {
@@ -51,6 +53,7 @@ func (u ussdRegistrationService) Register(ctx context.Context, phoneNumber strin
 	))
 	//insert phone verification
 	if result != nil {
+		//To-Do - generate pin and send to phone
 		u.baseRepo.Create(ctx, regDomain.PhoneVerificationCode{
 			Phone:      phoneNumber,
 			Used:       false,
@@ -62,7 +65,7 @@ func (u ussdRegistrationService) Register(ctx context.Context, phoneNumber strin
 }
 
 func (u ussdRegistrationService) VerifyPhone(ctx context.Context, phoneNumber string, otp string) (bool, error) {
-	_, err := u.baseRepo.Get(ctx, 1, 1, &regDomain.PhoneVerificationCode{
+	res, err := u.baseRepo.Get(ctx, 1, 1, &regDomain.PhoneVerificationCode{
 		Phone: phoneNumber,
 		Code:  otp,
 		Used:  false,
@@ -70,6 +73,28 @@ func (u ussdRegistrationService) VerifyPhone(ctx context.Context, phoneNumber st
 	if err != nil {
 		return false, err
 	}
+	if res != nil {
+		result := *res
+		ver := result[0]
+		now := time.Now()
+		if ver.ExpiryDate.Before(now) {
+			return false, errors.New("code expired")
+		}
+		return true, nil
+	}
+	return false, errors.New("code not found")
+
+}
+func (u ussdRegistrationService) ResendPhoneOTP(ctx context.Context, phoneNumber string) (bool, error) {
+	_, err := u.baseRepo.Create(ctx, regDomain.PhoneVerificationCode{
+		Phone:      phoneNumber,
+		Used:       false,
+		ExpiryDate: time.Now().Add(time.Minute * 30),
+	})
+	if err != nil {
+		return false, err
+	}
+	//To-Do - generate pin and send to phone
 	return true, nil
 
 }
