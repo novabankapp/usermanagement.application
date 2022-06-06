@@ -10,9 +10,9 @@ import (
 	registrationcommands "github.com/novabankapp/usermanagement.application/commands/registration"
 	registration_dtos "github.com/novabankapp/usermanagement.application/dtos/registration"
 	registration_handlers "github.com/novabankapp/usermanagement.application/handlers/registration"
+	baseService "github.com/novabankapp/usermanagement.application/services/base"
 	regDomain "github.com/novabankapp/usermanagement.data/domain/registration"
 	auth_repository "github.com/novabankapp/usermanagement.data/repositories/auth"
-	baseRepository "github.com/novabankapp/usermanagement.data/repositories/base/postgres"
 	"github.com/novabankapp/usermanagement.data/repositories/registration"
 	"time"
 )
@@ -24,27 +24,27 @@ type USSDRegistrationService interface {
 }
 
 type ussdRegistrationService struct {
-	notifier sms.SMSService
-	repo     registration.RegisterRepository
-	authRepo auth_repository.AuthRepository
-	baseRepo baseRepository.PostgresRepository[regDomain.PhoneVerificationCode]
-	Commands registrationcommands.RegistrationCommands
+	notifier    sms.SMSService
+	repo        registration.RegisterRepository
+	authRepo    auth_repository.AuthRepository
+	baseService baseService.Service[regDomain.PhoneVerificationCode]
+	Commands    registrationcommands.RegistrationCommands
 }
 
 func NewUSSDDRegistrationService(log logger.Logger, cfg *kafka.Config,
 	kafkaProducer kafkaClient.Producer,
 	notifier sms.SMSService,
-	baseRepo baseRepository.PostgresRepository[regDomain.PhoneVerificationCode],
+	baseService baseService.Service[regDomain.PhoneVerificationCode],
 	repo registration.RegisterRepository,
 	authRepo auth_repository.AuthRepository) USSDRegistrationService {
 	regUserHandler := registration_handlers.NewRegisterUserHandler(log, cfg, repo, authRepo, kafkaProducer)
 	registerCommands := registrationcommands.NewRegistrationCommands(regUserHandler)
 	return &ussdRegistrationService{
-		notifier: notifier,
-		repo:     repo,
-		authRepo: authRepo,
-		baseRepo: baseRepo,
-		Commands: *registerCommands,
+		notifier:    notifier,
+		repo:        repo,
+		authRepo:    authRepo,
+		baseService: baseService,
+		Commands:    *registerCommands,
 	}
 }
 
@@ -60,7 +60,7 @@ func (u ussdRegistrationService) Register(ctx context.Context, phoneNumber strin
 		//To-Do - generate pin and send to phone
 		u.notifier.SendSMS("", phoneNumber, "")
 
-		u.baseRepo.Create(ctx, regDomain.PhoneVerificationCode{
+		u.baseService.Create(ctx, regDomain.PhoneVerificationCode{
 			Phone:      phoneNumber,
 			Used:       false,
 			ExpiryDate: time.Now().Add(time.Minute * 30),
@@ -71,7 +71,7 @@ func (u ussdRegistrationService) Register(ctx context.Context, phoneNumber strin
 }
 
 func (u ussdRegistrationService) VerifyPhone(ctx context.Context, phoneNumber string, otp string) (bool, error) {
-	res, err := u.baseRepo.Get(ctx, 1, 1, &regDomain.PhoneVerificationCode{
+	res, err := u.baseService.Get(ctx, 1, 1, &regDomain.PhoneVerificationCode{
 		Phone: phoneNumber,
 		Code:  otp,
 		Used:  false,
@@ -92,7 +92,7 @@ func (u ussdRegistrationService) VerifyPhone(ctx context.Context, phoneNumber st
 
 }
 func (u ussdRegistrationService) ResendPhoneOTP(ctx context.Context, phoneNumber string) (bool, error) {
-	_, err := u.baseRepo.Create(ctx, regDomain.PhoneVerificationCode{
+	_, err := u.baseService.Create(ctx, regDomain.PhoneVerificationCode{
 		Phone:      phoneNumber,
 		Used:       false,
 		ExpiryDate: time.Now().Add(time.Minute * 30),
