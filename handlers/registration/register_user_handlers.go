@@ -6,36 +6,36 @@ import (
 	"encoding/json"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
-	registrationcommands "github.com/novabankapp/usermanagement.application/commands/registration"
+	registrationCommands "github.com/novabankapp/usermanagement.application/commands/registration"
 	"github.com/novabankapp/usermanagement.application/services/message_queue"
 	"github.com/novabankapp/usermanagement.data/domain/account"
 	"github.com/novabankapp/usermanagement.data/domain/login"
 	"github.com/novabankapp/usermanagement.data/domain/registration"
-	auth_repository "github.com/novabankapp/usermanagement.data/repositories/auth"
-	reg_repo "github.com/novabankapp/usermanagement.data/repositories/registration"
+	authRepository "github.com/novabankapp/usermanagement.data/repositories/auth"
+	regRepo "github.com/novabankapp/usermanagement.data/repositories/registration"
 	"time"
 )
 
 type RegisterUserCmdHandler interface {
-	Handle(ctx context.Context, command *registrationcommands.RegisterUserCommand) (*string, error)
+	Handle(ctx context.Context, command *registrationCommands.RegisterUserCommand) (*string, error)
 }
 type registerUserCmdHandler struct {
 	log          logger.Logger
 	topics       *kafkaClient.KafkaTopics
 	messageQueue message_queue.MessageQueue
-	repo         reg_repo.RegisterRepository
-	authRepo     auth_repository.AuthRepository
+	repo         regRepo.RegisterRepository
+	authRepo     authRepository.AuthRepository
 }
 
 func NewRegisterUserHandler(log logger.Logger,
 	topics *kafkaClient.KafkaTopics,
 	messageQueue message_queue.MessageQueue,
-	repo reg_repo.RegisterRepository, authRepo auth_repository.AuthRepository) RegisterUserCmdHandler {
+	repo regRepo.RegisterRepository, authRepo authRepository.AuthRepository) RegisterUserCmdHandler {
 	return &registerUserCmdHandler{log: log, topics: topics, messageQueue: messageQueue, repo: repo, authRepo: authRepo}
 }
 
 func (r registerUserCmdHandler) Handle(ctx context.Context,
-	command *registrationcommands.RegisterUserCommand) (*string, error) {
+	command *registrationCommands.RegisterUserCommand) (*string, error) {
 	userDto := registration.User{
 		FirstName: command.Dto.FirstName,
 		LastName:  command.Dto.LastName,
@@ -45,9 +45,9 @@ func (r registerUserCmdHandler) Handle(ctx context.Context,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	userId, error := r.repo.Create(ctx, userDto)
-	if error != nil {
-		return nil, error
+	userId, err2 := r.repo.Create(ctx, userDto)
+	if err2 != nil {
+		return nil, err2
 	}
 	_, err := r.authRepo.Create(ctx, account.UserAccount{
 		UserID: *userId,
@@ -66,11 +66,13 @@ func (r registerUserCmdHandler) Handle(ctx context.Context,
 	}
 
 	res := new(bytes.Buffer)
-	json.NewEncoder(res).Encode(userDto)
-	msgBytes := res.Bytes()
+	e := json.NewEncoder(res).Encode(userDto)
+	if e == nil {
+		msgBytes := res.Bytes()
 
-	_, error = r.messageQueue.PublishMessage(ctx, msgBytes, *userId, r.topics.UserCreated.TopicName)
+		_, err2 = r.messageQueue.PublishMessage(ctx, msgBytes, *userId, r.topics.UserCreated.TopicName)
+	}
 
-	return userId, error
+	return userId, err2
 
 }

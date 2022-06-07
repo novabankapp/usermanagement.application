@@ -3,42 +3,39 @@ package registration
 import (
 	"context"
 	"errors"
-	"github.com/novabankapp/common.infrastructure/kafka"
+	"fmt"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/common.notifier/sms"
-	registrationcommands "github.com/novabankapp/usermanagement.application/commands/registration"
-	registration_dtos "github.com/novabankapp/usermanagement.application/dtos/registration"
-	registration_handlers "github.com/novabankapp/usermanagement.application/handlers/registration"
+	registrationCommands "github.com/novabankapp/usermanagement.application/commands/registration"
+	registrationDtos "github.com/novabankapp/usermanagement.application/dtos/registration"
+	registrationHandlers "github.com/novabankapp/usermanagement.application/handlers/registration"
+	"github.com/novabankapp/usermanagement.application/services"
 	baseService "github.com/novabankapp/usermanagement.application/services/base"
+	"github.com/novabankapp/usermanagement.application/services/message_queue"
 	regDomain "github.com/novabankapp/usermanagement.data/domain/registration"
-	auth_repository "github.com/novabankapp/usermanagement.data/repositories/auth"
+	authRepository "github.com/novabankapp/usermanagement.data/repositories/auth"
 	"github.com/novabankapp/usermanagement.data/repositories/registration"
 	"time"
 )
 
-type USSDRegistrationService interface {
-	Register(ctx context.Context, phoneNumber string, pin string) (*string, error)
-	VerifyPhone(ctx context.Context, phoneNumber string, otp string) (bool, error)
-	ResendPhoneOTP(ctx context.Context, phoneNumber string) (bool, error)
-}
-
 type ussdRegistrationService struct {
 	notifier    sms.SMSService
 	repo        registration.RegisterRepository
-	authRepo    auth_repository.AuthRepository
+	authRepo    authRepository.AuthRepository
 	baseService baseService.Service[regDomain.PhoneVerificationCode]
-	Commands    registrationcommands.RegistrationCommands
+	Commands    registrationCommands.RegistrationCommands
 }
 
-func NewUSSDDRegistrationService(log logger.Logger, cfg *kafka.Config,
-	kafkaProducer kafkaClient.Producer,
+func NewUSSDDRegistrationService(log logger.Logger,
+	topics *kafkaClient.KafkaTopics,
 	notifier sms.SMSService,
+	messageQueue message_queue.MessageQueue,
 	baseService baseService.Service[regDomain.PhoneVerificationCode],
 	repo registration.RegisterRepository,
-	authRepo auth_repository.AuthRepository) USSDRegistrationService {
-	regUserHandler := registration_handlers.NewRegisterUserHandler(log, cfg, repo, authRepo, kafkaProducer)
-	registerCommands := registrationcommands.NewRegistrationCommands(regUserHandler)
+	authRepo authRepository.AuthRepository) UserRegistrationService {
+	regUserHandler := registrationHandlers.NewRegisterUserHandler(log, topics, messageQueue, repo, authRepo)
+	registerCommands := registrationCommands.NewRegistrationCommands(regUserHandler)
 	return &ussdRegistrationService{
 		notifier:    notifier,
 		repo:        repo,
@@ -48,31 +45,30 @@ func NewUSSDDRegistrationService(log logger.Logger, cfg *kafka.Config,
 	}
 }
 
-func (u ussdRegistrationService) Register(ctx context.Context, phoneNumber string, pin string) (*string, error) {
-	result, err := u.Commands.RegisterUser.Handle(ctx, registrationcommands.NewRegisterUserCommand(
-		registration_dtos.RegisterUserDto{
-			Phone: phoneNumber,
-			Pin:   pin,
-		},
+func (u ussdRegistrationService) Register(ctx context.Context, user registrationDtos.RegisterUserDto) (*string, error) {
+	result, err := u.Commands.RegisterUser.Handle(ctx, registrationCommands.NewRegisterUserCommand(
+		user,
 	))
 	//insert phone verification
 	if result != nil {
 		//To-Do - generate pin and send to phone
-		u.notifier.SendSMS("", phoneNumber, "")
-
+		pin := services.GenerateOTP(5)
 		u.baseService.Create(ctx, regDomain.PhoneVerificationCode{
-			Phone:      phoneNumber,
+			Phone:      user.Phone,
 			Used:       false,
+			Code:       pin,
 			ExpiryDate: time.Now().Add(time.Minute * 30),
 		})
+		u.notifier.SendSMS(user.Phone, fmt.Sprintf("Your One time pin is %s", pin))
+
 	}
 	return result, err
 
 }
 
-func (u ussdRegistrationService) VerifyPhone(ctx context.Context, phoneNumber string, otp string) (bool, error) {
+func (u ussdRegistrationService) VerifyOTP(ctx context.Context, user registrationDtos.RegisterUserDto, otp string) (bool, error) {
 	res, err := u.baseService.Get(ctx, 1, 1, &regDomain.PhoneVerificationCode{
-		Phone: phoneNumber,
+		Phone: user.Phone,
 		Code:  otp,
 		Used:  false,
 	}, "")
@@ -91,17 +87,20 @@ func (u ussdRegistrationService) VerifyPhone(ctx context.Context, phoneNumber st
 	return false, errors.New("code not found")
 
 }
-func (u ussdRegistrationService) ResendPhoneOTP(ctx context.Context, phoneNumber string) (bool, error) {
+func (u ussdRegistrationService) ResendOTP(ctx context.Context, user registrationDtos.RegisterUserDto) (bool, error) {
+
+	//To-Do - generate pin and send to phone
+	pin := services.GenerateOTP(5)
 	_, err := u.baseService.Create(ctx, regDomain.PhoneVerificationCode{
-		Phone:      phoneNumber,
+		Phone:      user.Phone,
 		Used:       false,
+		Code:       pin,
 		ExpiryDate: time.Now().Add(time.Minute * 30),
 	})
 	if err != nil {
 		return false, err
 	}
-	//To-Do - generate pin and send to phone
-	u.notifier.SendSMS("", phoneNumber, "")
+	u.notifier.SendSMS(user.Phone, fmt.Sprintf("Your One time pin is %s", pin))
 	return true, nil
 
 }
