@@ -25,8 +25,8 @@ type webRegistrationService struct {
 	mailNotifier             email.MailService
 	repo                     registration.RegisterRepository
 	authRepo                 authRepository.AuthRepository
-	phoneVerificationService baseService.Service[regDomain.PhoneVerificationCode]
-	emailVerificationService baseService.Service[regDomain.EmailVerificationCode]
+	phoneVerificationService baseService.RdbmsService[regDomain.PhoneVerificationCode]
+	emailVerificationService baseService.RdbmsService[regDomain.EmailVerificationCode]
 	Commands                 registrationCommands.RegistrationCommands
 }
 
@@ -35,8 +35,8 @@ func NewWebRegistrationService(log logger.Logger,
 	smsNotifier sms.SMSService,
 	mailNotifier email.MailService,
 	messageQueue message_queue.MessageQueue,
-	phoneVerificationService baseService.Service[regDomain.PhoneVerificationCode],
-	emailVerificationService baseService.Service[regDomain.EmailVerificationCode],
+	phoneVerificationService baseService.RdbmsService[regDomain.PhoneVerificationCode],
+	emailVerificationService baseService.RdbmsService[regDomain.EmailVerificationCode],
 	repo registration.RegisterRepository,
 	authRepo authRepository.AuthRepository) UserRegistrationService {
 	regUserHandler := registrationHandlers.NewRegisterUserHandler(log, topics, messageQueue, repo, authRepo)

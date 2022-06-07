@@ -23,7 +23,7 @@ type ussdRegistrationService struct {
 	notifier    sms.SMSService
 	repo        registration.RegisterRepository
 	authRepo    authRepository.AuthRepository
-	baseService baseService.Service[regDomain.PhoneVerificationCode]
+	baseService baseService.RdbmsService[regDomain.PhoneVerificationCode]
 	Commands    registrationCommands.RegistrationCommands
 }
 
@@ -31,7 +31,7 @@ func NewUSSDDRegistrationService(log logger.Logger,
 	topics *kafkaClient.KafkaTopics,
 	notifier sms.SMSService,
 	messageQueue message_queue.MessageQueue,
-	baseService baseService.Service[regDomain.PhoneVerificationCode],
+	baseService baseService.RdbmsService[regDomain.PhoneVerificationCode],
 	repo registration.RegisterRepository,
 	authRepo authRepository.AuthRepository) UserRegistrationService {
 	regUserHandler := registrationHandlers.NewRegisterUserHandler(log, topics, messageQueue, repo, authRepo)
