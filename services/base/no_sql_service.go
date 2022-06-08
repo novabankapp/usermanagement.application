@@ -29,8 +29,13 @@ func (s *NoSqlService[E]) Update(ctx context.Context, entity E, id string) (bool
 func (s *NoSqlService[E]) Delete(ctx context.Context, id string) (bool, error) {
 	return s.repo.Delete(ctx, id)
 }
-func (s *NoSqlService[E]) GetGet(ctx context.Context,
+func (s *NoSqlService[E]) Get(ctx context.Context,
 	page []byte, pageSize int, queries []map[string]string, orderBy string) (*[]E, error) {
 	return s.repo.Get(ctx, page, pageSize, queries, orderBy)
+
+}
+func (s *NoSqlService[E]) GetByCondition(ctx context.Context,
+	queries []map[string]string) (*E, error) {
+	return s.repo.GetByCondition(ctx, queries)
 
 }

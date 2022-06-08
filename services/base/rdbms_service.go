@@ -23,7 +23,7 @@ func (s *RdbmsService[E]) GetById(ctx context.Context, id string) (*E, error) {
 	return s.repo.GetById(ctx, id)
 }
 
-func (s *RdbmsService[E]) Update(ctx context.Context, entity E, id string) (bool, error) {
+func (s *RdbmsService[E]) Update(ctx context.Context, entity E, id uint) (bool, error) {
 	return s.repo.Update(ctx, entity, id)
 }
 func (s *RdbmsService[E]) Delete(ctx context.Context, id string) (bool, error) {
@@ -32,5 +32,9 @@ func (s *RdbmsService[E]) Delete(ctx context.Context, id string) (bool, error) {
 func (s *RdbmsService[E]) Get(ctx context.Context,
 	page int, pageSize int, query *E, orderBy string) (*[]E, error) {
 	return s.repo.Get(ctx, page, pageSize, query, orderBy)
+
+}
+func (s *RdbmsService[E]) GetByCondition(ctx context.Context, query *E) (*E, error) {
+	return s.repo.GetByCondition(ctx, query)
 
 }
