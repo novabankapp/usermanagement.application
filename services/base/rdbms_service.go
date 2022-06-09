@@ -26,7 +26,7 @@ func (s *RdbmsService[E]) GetById(ctx context.Context, id string) (*E, error) {
 func (s *RdbmsService[E]) Update(ctx context.Context, entity E, id uint) (bool, error) {
 	return s.repo.Update(ctx, entity, id)
 }
-func (s *RdbmsService[E]) Delete(ctx context.Context, id string) (bool, error) {
+func (s *RdbmsService[E]) Delete(ctx context.Context, id uint) (bool, error) {
 	return s.repo.Delete(ctx, id)
 }
 func (s *RdbmsService[E]) Get(ctx context.Context,

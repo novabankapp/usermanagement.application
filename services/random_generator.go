@@ -1,6 +1,8 @@
 package services
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
 	"math/rand"
 	"time"
 )
@@ -21,4 +23,12 @@ func stringWithChars(length int, charset string) string {
 func GenerateOTP(length int) string {
 
 	return stringWithChars(length, charset)
+}
+
+func GenerateSha1Hash(input string) string {
+	bv := []byte(input)
+	hasher := sha1.New()
+	hasher.Write(bv)
+	sha := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
+	return sha
 }

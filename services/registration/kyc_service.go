@@ -1,16 +1,22 @@
 package registration
 
 import (
+	"bytes"
 	"context"
-	registration_dtos "github.com/novabankapp/usermanagement.application/dtos/registration"
+	"encoding/json"
+	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
+	registrationDtos "github.com/novabankapp/usermanagement.application/dtos/registration"
 	baseService "github.com/novabankapp/usermanagement.application/services/base"
+	"github.com/novabankapp/usermanagement.application/services/message_queue"
+	"github.com/novabankapp/usermanagement.application/utilities"
 	accDomain "github.com/novabankapp/usermanagement.data/domain/account"
 	regDomain "github.com/novabankapp/usermanagement.data/domain/registration"
-	noSql "github.com/novabankapp/usermanagement.data/repositories/base/cassandra"
+
+	"strconv"
 )
 
 type KycService interface {
-	SaveUserDetails(ctx context.Context, details registration_dtos.UserDetailsDto) (bool, error)
+	SaveUserDetails(ctx context.Context, details registrationDtos.UserDetailsDto) (bool, error)
 }
 type KycRepositories struct {
 	contactRepo            baseService.RdbmsService[regDomain.Contact]
@@ -24,44 +30,67 @@ type KycRepositories struct {
 	accountActivityRepo    baseService.NoSqlService[accDomain.UserAccountActivity]
 }
 type kycService struct {
-	kycRepos KycRepositories
+	kycRepos     KycRepositories
+	messageQueue message_queue.MessageQueue
+	topics       *kafkaClient.KafkaTopics
 }
 
-func NewKycService(kycRepos KycRepositories) KycService {
+func NewKycService(kycRepos KycRepositories, messageQueue message_queue.MessageQueue, topics *kafkaClient.KafkaTopics) KycService {
 	return &kycService{
-		kycRepos: kycRepos,
+		kycRepos:     kycRepos,
+		messageQueue: messageQueue,
+		topics:       topics,
 	}
 }
-func (k kycService) SaveUserDetails(ctx context.Context, details registration_dtos.UserDetailsDto) (bool, error) {
+func (k kycService) DeleteContact(ctx context.Context, id uint) (bool, error) {
+
+	_, err := k.kycRepos.contactRepo.Delete(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	res := new(bytes.Buffer)
+	e := json.NewEncoder(res).Encode(id)
+	if e == nil {
+		msgBytes := res.Bytes()
+		_, _ = k.messageQueue.PublishMessage(ctx, msgBytes, strconv.FormatUint(uint64(id), 10), k.topics.ContactDeleted.TopicName)
+	}
+	return true, nil
+}
+func (k kycService) SaveUserDetails(ctx context.Context, details registrationDtos.UserDetailsDto) (bool, error) {
 	res, _ := k.kycRepos.userDetailsRepo.GetByCondition(ctx, &regDomain.UserDetails{
 		UserID: details.UserID,
 	})
+	var results regDomain.UserDetails
 	if res == nil {
-		_, error := k.kycRepos.userDetailsRepo.Create(ctx, regDomain.UserDetails{
+		r, err := k.kycRepos.userDetailsRepo.Create(ctx, regDomain.UserDetails{
 			UserID:        details.UserID,
 			DOB:           details.DOB,
 			Title:         details.Title,
 			MaritalStatus: details.MaritalStatus,
 			Gender:        details.Gender,
 		})
-		if error != nil {
-			return false, error
+
+		if err != nil {
+			return false, err
 		}
+		results = *r
 	} else {
 		result := *res
-		_, error := k.kycRepos.userDetailsRepo.Update(ctx, regDomain.UserDetails{
+		data := regDomain.UserDetails{
 			UserID:        details.UserID,
 			DOB:           details.DOB,
 			Title:         details.Title,
 			MaritalStatus: details.MaritalStatus,
 			Gender:        details.Gender,
-		}, result.ID)
-		if error != nil {
-			return false, error
 		}
+		_, err := k.kycRepos.userDetailsRepo.Update(ctx, data, result.ID)
+		if err != nil {
+			return false, err
+		}
+		results = data
 	}
 	queries := make([]map[string]string, 1)
-	queries = makeQueries(queries, "UserId", "=", details.UserID)
+	queries = utilities.MakeQueries(queries, "UserId", "=", details.UserID)
 
 	r, _ := k.kycRepos.kycRepo.GetByCondition(ctx, queries)
 	if r == nil {
@@ -71,40 +100,50 @@ func (k kycService) SaveUserDetails(ctx context.Context, details registration_dt
 		})
 	} else {
 		re := *r
-		k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
+		_, _ = k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
 			HasUserDetails: true,
 		}, re.ID)
 	}
+	val := new(bytes.Buffer)
+	e := json.NewEncoder(val).Encode(results)
+	if e == nil {
+		msgBytes := val.Bytes()
+		_, _ = k.messageQueue.PublishMessage(ctx, msgBytes, details.UserID, k.topics.UserUpdated.TopicName)
+	}
 	return true, nil
 }
-func (k kycService) SaveUserIncome(ctx context.Context, details registration_dtos.UserIncomeDto) (bool, error) {
+func (k kycService) SaveUserIncome(ctx context.Context, details registrationDtos.UserIncomeDto) (bool, error) {
 	res, _ := k.kycRepos.userIncomeRepo.GetByCondition(ctx, &regDomain.UserIncome{
 		UserID: details.UserID,
 	})
+	var results regDomain.UserIncome
 	if res == nil {
-		_, error := k.kycRepos.userIncomeRepo.Create(ctx, regDomain.UserIncome{
+		r, err := k.kycRepos.userIncomeRepo.Create(ctx, regDomain.UserIncome{
 			UserID:        details.UserID,
 			Source:        details.Source,
 			MonthlyIncome: details.MonthlyIncome,
 			ProofOfSource: details.ProofOfSource,
 		})
-		if error != nil {
-			return false, error
+		if err != nil {
+			return false, err
 		}
+		results = *r
 	} else {
 		result := *res
-		_, error := k.kycRepos.userIncomeRepo.Update(ctx, regDomain.UserIncome{
+		data := regDomain.UserIncome{
 			UserID:        details.UserID,
 			Source:        details.Source,
 			MonthlyIncome: details.MonthlyIncome,
 			ProofOfSource: details.ProofOfSource,
-		}, result.ID)
-		if error != nil {
-			return false, error
 		}
+		_, err := k.kycRepos.userIncomeRepo.Update(ctx, data, result.ID)
+		if err != nil {
+			return false, err
+		}
+		results = data
 	}
 	queries := make([]map[string]string, 1)
-	queries = makeQueries(queries, "UserId", "=", details.UserID)
+	queries = utilities.MakeQueries(queries, "UserId", "=", details.UserID)
 
 	r, _ := k.kycRepos.kycRepo.GetByCondition(ctx, queries)
 	if r == nil {
@@ -114,42 +153,52 @@ func (k kycService) SaveUserIncome(ctx context.Context, details registration_dto
 		})
 	} else {
 		re := *r
-		k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
+		_, _ = k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
 			HasUserIncome: true,
 		}, re.ID)
 	}
+	val := new(bytes.Buffer)
+	e := json.NewEncoder(val).Encode(results)
+	if e == nil {
+		msgBytes := val.Bytes()
+		_, _ = k.messageQueue.PublishMessage(ctx, msgBytes, details.UserID, k.topics.UserUpdated.TopicName)
+	}
 	return true, nil
 }
-func (k kycService) SaveUserIdentification(ctx context.Context, details registration_dtos.UserIdentificationDto) (bool, error) {
+func (k kycService) SaveUserIdentification(ctx context.Context, details registrationDtos.UserIdentificationDto) (bool, error) {
 	res, _ := k.kycRepos.userIdentificationRepo.GetByCondition(ctx, &regDomain.UserIdentification{
 		UserID: details.UserID,
 	})
+	var results regDomain.UserIdentification
 	if res == nil {
-		_, error := k.kycRepos.userIdentificationRepo.Create(ctx, regDomain.UserIdentification{
+		r, err := k.kycRepos.userIdentificationRepo.Create(ctx, regDomain.UserIdentification{
 			UserID:     details.UserID,
 			TypeOfID:   details.TypeOfID,
 			IDNumber:   details.IDNumber,
 			IssueDate:  details.IssueDate,
 			ExpiryDate: details.ExpiryDate,
 		})
-		if error != nil {
-			return false, error
+		if err != nil {
+			return false, err
 		}
+		results = *r
 	} else {
 		result := *res
-		_, error := k.kycRepos.userIdentificationRepo.Update(ctx, regDomain.UserIdentification{
+		data := regDomain.UserIdentification{
 			UserID:     details.UserID,
 			TypeOfID:   details.TypeOfID,
 			IDNumber:   details.IDNumber,
 			IssueDate:  details.IssueDate,
 			ExpiryDate: details.ExpiryDate,
-		}, result.ID)
-		if error != nil {
-			return false, error
 		}
+		_, err := k.kycRepos.userIdentificationRepo.Update(ctx, data, result.ID)
+		if err != nil {
+			return false, err
+		}
+		results = data
 	}
 	queries := make([]map[string]string, 1)
-	queries = makeQueries(queries, "UserId", "=", details.UserID)
+	queries = utilities.MakeQueries(queries, "UserId", "=", details.UserID)
 
 	r, _ := k.kycRepos.kycRepo.GetByCondition(ctx, queries)
 	if r == nil {
@@ -159,42 +208,52 @@ func (k kycService) SaveUserIdentification(ctx context.Context, details registra
 		})
 	} else {
 		re := *r
-		k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
+		_, _ = k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
 			HasUserIdentification: true,
 		}, re.ID)
 	}
+	val := new(bytes.Buffer)
+	e := json.NewEncoder(val).Encode(results)
+	if e == nil {
+		msgBytes := val.Bytes()
+		_, _ = k.messageQueue.PublishMessage(ctx, msgBytes, details.UserID, k.topics.UserUpdated.TopicName)
+	}
 	return true, nil
 }
-func (k kycService) SaveResidenceDetails(ctx context.Context, details registration_dtos.ResidenceDetailsDto) (bool, error) {
+func (k kycService) SaveResidenceDetails(ctx context.Context, details registrationDtos.ResidenceDetailsDto) (bool, error) {
 	res, _ := k.kycRepos.residenceDetailsRepo.GetByCondition(ctx, &regDomain.ResidenceDetails{
 		UserID: details.UserID,
 	})
+	var results regDomain.ResidenceDetails
 	if res == nil {
-		_, error := k.kycRepos.residenceDetailsRepo.Create(ctx, regDomain.ResidenceDetails{
+		r, err := k.kycRepos.residenceDetailsRepo.Create(ctx, regDomain.ResidenceDetails{
 			UserID:            details.UserID,
 			ResidentialStatus: details.ResidentialStatus,
 			ProofOfResidency:  details.ProofOfResidency,
 			NationalityID:     details.NationalityCountryID,
 			CountryOfBirthID:  details.CountryOfBirthID,
 		})
-		if error != nil {
-			return false, error
+		if err != nil {
+			return false, err
 		}
+		results = *r
 	} else {
 		result := *res
-		_, error := k.kycRepos.residenceDetailsRepo.Update(ctx, regDomain.ResidenceDetails{
+		data := regDomain.ResidenceDetails{
 			UserID:            details.UserID,
 			ResidentialStatus: details.ResidentialStatus,
 			ProofOfResidency:  details.ProofOfResidency,
 			NationalityID:     details.NationalityCountryID,
 			CountryOfBirthID:  details.CountryOfBirthID,
-		}, result.ID)
-		if error != nil {
-			return false, error
 		}
+		_, err := k.kycRepos.residenceDetailsRepo.Update(ctx, data, result.ID)
+		if err != nil {
+			return false, err
+		}
+		results = data
 	}
 	queries := make([]map[string]string, 1)
-	queries = makeQueries(queries, "UserId", "=", details.UserID)
+	queries = utilities.MakeQueries(queries, "UserId", "=", details.UserID)
 
 	r, _ := k.kycRepos.kycRepo.GetByCondition(ctx, queries)
 	if r == nil {
@@ -204,38 +263,48 @@ func (k kycService) SaveResidenceDetails(ctx context.Context, details registrati
 		})
 	} else {
 		re := *r
-		k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
+		_, _ = k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
 			HasResidenceDetails: true,
 		}, re.ID)
 	}
+	val := new(bytes.Buffer)
+	e := json.NewEncoder(val).Encode(results)
+	if e == nil {
+		msgBytes := val.Bytes()
+		_, _ = k.messageQueue.PublishMessage(ctx, msgBytes, details.UserID, k.topics.UserUpdated.TopicName)
+	}
 	return true, nil
 }
-func (k kycService) SaveUserEmployment(ctx context.Context, details registration_dtos.UserEmploymentDto) (bool, error) {
+func (k kycService) SaveUserEmployment(ctx context.Context, details registrationDtos.UserEmploymentDto) (bool, error) {
 	res, _ := k.kycRepos.userEmploymentRepo.GetByCondition(ctx, &regDomain.UserEmployment{
 		UserID: details.UserID,
 	})
+	var results regDomain.UserEmployment
 	if res == nil {
-		_, error := k.kycRepos.userEmploymentRepo.Create(ctx, regDomain.UserEmployment{
+		r, err := k.kycRepos.userEmploymentRepo.Create(ctx, regDomain.UserEmployment{
 			UserID:         details.UserID,
 			NameOfEmployer: details.NameOfEmployer,
 			Industry:       details.Industry,
 		})
-		if error != nil {
-			return false, error
+		if err != nil {
+			return false, err
 		}
+		results = *r
 	} else {
 		result := *res
-		_, error := k.kycRepos.userEmploymentRepo.Update(ctx, regDomain.UserEmployment{
+		data := regDomain.UserEmployment{
 			UserID:         details.UserID,
 			NameOfEmployer: details.NameOfEmployer,
 			Industry:       details.Industry,
-		}, result.ID)
-		if error != nil {
-			return false, error
 		}
+		_, err := k.kycRepos.userEmploymentRepo.Update(ctx, data, result.ID)
+		if err != nil {
+			return false, err
+		}
+		results = data
 	}
 	queries := make([]map[string]string, 1)
-	queries = makeQueries(queries, "UserId", "=", details.UserID)
+	queries = utilities.MakeQueries(queries, "UserId", "=", details.UserID)
 
 	r, _ := k.kycRepos.kycRepo.GetByCondition(ctx, queries)
 	if r == nil {
@@ -245,39 +314,52 @@ func (k kycService) SaveUserEmployment(ctx context.Context, details registration
 		})
 	} else {
 		re := *r
-		k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
+		_, _ = k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
 			HasUserEmployment: true,
 		}, re.ID)
+	}
+	val := new(bytes.Buffer)
+	e := json.NewEncoder(val).Encode(results)
+	if e == nil {
+		msgBytes := val.Bytes()
+		_, _ = k.messageQueue.PublishMessage(ctx, msgBytes, details.UserID, k.topics.UserUpdated.TopicName)
 	}
 	return true, nil
 }
 
-func (k kycService) SaveUserContact(ctx context.Context, details registration_dtos.ContactDto) (bool, error) {
-	res, _ := k.kycRepos.contactRepo.GetByCondition(ctx, &regDomain.Contact{
-		UserID: details.UserID,
-	})
-	if res == nil {
-		_, error := k.kycRepos.contactRepo.Create(ctx, regDomain.Contact{
+func (k kycService) SaveUserContact(ctx context.Context, details registrationDtos.ContactDto) (bool, error) {
+	var results regDomain.Contact
+	if details.ID == nil {
+
+		r, err := k.kycRepos.contactRepo.Create(ctx, regDomain.Contact{
 			UserID: details.UserID,
 			TypeID: details.TypeID,
 			Value:  details.Value,
 		})
-		if error != nil {
-			return false, error
+		if err != nil {
+			return false, err
 		}
+		results = *r
 	} else {
+		dom := regDomain.Contact{
+			UserID: details.UserID,
+		}
+		dom.ID = *details.ID
+		res, _ := k.kycRepos.contactRepo.GetByCondition(ctx, &dom)
 		result := *res
-		_, error := k.kycRepos.contactRepo.Update(ctx, regDomain.Contact{
+		data := regDomain.Contact{
 			UserID: details.UserID,
 			TypeID: details.TypeID,
 			Value:  details.Value,
-		}, result.ID)
-		if error != nil {
-			return false, error
 		}
+		_, err := k.kycRepos.contactRepo.Update(ctx, data, result.ID)
+		if err != nil {
+			return false, err
+		}
+		results = data
 	}
 	queries := make([]map[string]string, 1)
-	queries = makeQueries(queries, "UserId", "=", details.UserID)
+	queries = utilities.MakeQueries(queries, "UserId", "=", details.UserID)
 
 	r, _ := k.kycRepos.kycRepo.GetByCondition(ctx, queries)
 	if r == nil {
@@ -287,19 +369,17 @@ func (k kycService) SaveUserContact(ctx context.Context, details registration_dt
 		})
 	} else {
 		re := *r
-		k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
+		_, _ = k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
 			//HasUserEmployment: true,
 		}, re.ID)
+	}
+	val := new(bytes.Buffer)
+	e := json.NewEncoder(val).Encode(results)
+	if e == nil {
+		msgBytes := val.Bytes()
+		_, _ = k.messageQueue.PublishMessage(ctx, msgBytes, details.UserID, k.topics.ContactUpdated.TopicName)
 	}
 	return true, nil
 }
 
-func makeQueries(queries []map[string]string, field, compare, value string) []map[string]string {
 
-	m := make(map[string]string)
-	m[noSql.COLUMN] = field
-	m[noSql.COMPARE] = compare
-	m[noSql.VALUE] = value
-	queries = append(queries, m)
-	return queries
-}
