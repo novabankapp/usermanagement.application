@@ -17,6 +17,9 @@ func MakeQueries(queries []map[string]string, field, compare, value string) []ma
 func FormatPhonePasswordResetMessage(pin string, expiryDate string) string {
 	return fmt.Sprintf("Your Password reset pin is %s and will expire after %s", pin, expiryDate)
 }
+func FormatPhoneLoginMessage(pin string, expiryDate string) string {
+	return fmt.Sprintf("Your Password login pin is %s and will expire after %s", pin, expiryDate)
+}
 func FormatEmailPasswordResetMessage(hash string, expiryDate string) string {
 	return fmt.Sprintf("Your Password reset pin is %s and will expire after %s", hash, expiryDate)
 }

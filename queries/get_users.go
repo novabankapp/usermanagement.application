@@ -2,8 +2,9 @@ package queries
 
 import (
 	"context"
+	"github.com/novabankapp/usermanagement.application/services/message_queue"
 
-	"github.com/novabankapp/common.infrastructure/kafka"
+	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/dtos"
 	"github.com/novabankapp/usermanagement.data/repositories/users"
@@ -13,14 +14,17 @@ type GetUsersHandler interface {
 	Handle(ctx context.Context, query *GetUsersQuery) (*dtos.GetUsersResponse, error)
 }
 type getUsersHandler struct {
-	log  logger.Logger
-	cfg  *kafka.Config
-	repo users.UserRepository
+	log          logger.Logger
+	messageQueue message_queue.MessageQueue
+	topics       *kafkaClient.KafkaTopics
+	repo         users.UserRepository
 }
 
-func NewGetUsersHandler(log logger.Logger, cfg *kafka.Config,
+func NewGetUsersHandler(log logger.Logger,
+	messageQueue message_queue.MessageQueue,
+	topics *kafkaClient.KafkaTopics,
 	repo users.UserRepository) GetUsersHandler {
-	return &getUsersHandler{log: log, cfg: cfg, repo: repo}
+	return &getUsersHandler{log: log, messageQueue: messageQueue, topics: topics, repo: repo}
 }
 
 func (q *getUsersHandler) Handle(ctx context.Context, query *GetUsersQuery) (*dtos.GetUsersResponse, error) {

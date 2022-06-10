@@ -2,10 +2,10 @@ package queries
 
 import (
 	"context"
-
-	"github.com/novabankapp/common.infrastructure/kafka"
+	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/dtos"
+	"github.com/novabankapp/usermanagement.application/services/message_queue"
 	"github.com/novabankapp/usermanagement.data/repositories/users"
 )
 
@@ -13,14 +13,17 @@ type GetUserByIdHandler interface {
 	Handle(ctx context.Context, query *GetUserByIdQuery) (*dtos.GetUserByIdResponse, error)
 }
 type getUserByIdHandler struct {
-	log  logger.Logger
-	cfg  *kafka.Config
-	repo users.UserRepository
+	log          logger.Logger
+	messageQueue message_queue.MessageQueue
+	topics       *kafkaClient.KafkaTopics
+	repo         users.UserRepository
 }
 
-func NewGetUserByIdHandler(log logger.Logger, cfg *kafka.Config,
+func NewGetUserByIdHandler(log logger.Logger,
+	messageQueue message_queue.MessageQueue,
+	topics *kafkaClient.KafkaTopics,
 	repo users.UserRepository) GetUserByIdHandler {
-	return &getUserByIdHandler{log: log, cfg: cfg, repo: repo}
+	return &getUserByIdHandler{log: log, messageQueue: messageQueue, topics: topics, repo: repo}
 }
 
 func (q *getUserByIdHandler) Handle(ctx context.Context, query *GetUserByIdQuery) (*dtos.GetUserByIdResponse, error) {

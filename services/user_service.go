@@ -2,50 +2,54 @@ package services
 
 import (
 	"context"
-
-	"github.com/novabankapp/common.infrastructure/kafka"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/commands"
 	"github.com/novabankapp/usermanagement.application/dtos"
 	"github.com/novabankapp/usermanagement.application/queries"
+	baseService "github.com/novabankapp/usermanagement.application/services/base"
+	"github.com/novabankapp/usermanagement.application/services/message_queue"
+	loginDomain "github.com/novabankapp/usermanagement.data/domain/login"
+	authRepository "github.com/novabankapp/usermanagement.data/repositories/auth"
 	"github.com/novabankapp/usermanagement.data/repositories/users"
 )
 
 type UserService interface {
-	CreateUser(ctx context.Context, dto dtos.CreateUserDto) (*string, error)
 	DeleteUser(ctx context.Context, dto dtos.DeleteUserDto) (bool, error)
 	UpdateUser(ctx context.Context, dto dtos.UpdateUserDto) (bool, error)
 	GetUserById(ctx context.Context, id string) (*dtos.GetUserByIdResponse, error)
 	GetUsers(ctx context.Context, query string, orderBy string, page int, pageSize int) (*dtos.GetUsersResponse, error)
 }
+type Repos struct {
+	LoginRepo baseService.NoSqlService[loginDomain.UserLogin]
+	UsersRepo users.UserRepository
+	AuthRepo  authRepository.AuthRepository
+}
 type userService struct {
-	Repo     users.UserRepository
-	Commands *commands.UserCommands
-	Queries  *queries.UserQueries
+	Repos        Repos
+	Commands     *commands.UserCommands
+	Queries      *queries.UserQueries
+	messageQueue message_queue.MessageQueue
+	topics       *kafkaClient.KafkaTopics
 }
 
-func NewUserService(log logger.Logger, cfg *kafka.Config,
-	kafkaProducer kafkaClient.Producer, repo users.UserRepository) UserService {
+func NewUserService(log logger.Logger,
+	messageQueue message_queue.MessageQueue,
+	topics *kafkaClient.KafkaTopics,
+	repos Repos) UserService {
 
-	createUserHandler := commands.NewCreateUserHandler(log, cfg, repo, kafkaProducer)
-	updateUserHandler := commands.NewUpdateUserHandler(log, cfg, repo, kafkaProducer)
-	deleteUserHandler := commands.NewDeleteUserHandler(log, cfg, repo, kafkaProducer)
+	updateUserHandler := commands.NewUpdateUserHandler(log, messageQueue, topics, repos)
+	deleteUserHandler := commands.NewDeleteUserHandler(log, messageQueue, topics, repos.UsersRepo, repos.AuthRepo)
 
-	getUserByIdHandler := queries.NewGetUserByIdHandler(log, cfg, repo)
-	getUsersHandler := queries.NewGetUsersHandler(log, cfg, repo)
+	getUserByIdHandler := queries.NewGetUserByIdHandler(log, messageQueue, topics, repos.UsersRepo)
+	getUsersHandler := queries.NewGetUsersHandler(log, messageQueue, topics, repos.UsersRepo)
 
-	usersCommands := commands.NewUserCommands(createUserHandler, updateUserHandler, deleteUserHandler)
+	usersCommands := commands.NewUserCommands(updateUserHandler, deleteUserHandler)
 	usersQueries := queries.NewUsersQueries(getUserByIdHandler, getUsersHandler)
 
-	return &userService{Commands: usersCommands, Queries: usersQueries, Repo: repo}
+	return &userService{Commands: usersCommands, Queries: usersQueries, Repos: repos}
 }
-func (s *userService) CreateUser(ctx context.Context, dto dtos.CreateUserDto) (*string, error) {
-	return s.Commands.CreateUser.Handle(ctx, commands.NewCreateUserCommand(
-		dto,
-	))
 
-}
 func (s *userService) DeleteUser(ctx context.Context, dto dtos.DeleteUserDto) (bool, error) {
 	return s.Commands.DeleteUser.Handle(ctx, commands.NewDeleteUserCommand(
 		dto,

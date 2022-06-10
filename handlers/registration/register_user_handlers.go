@@ -30,7 +30,8 @@ type registerUserCmdHandler struct {
 func NewRegisterUserHandler(log logger.Logger,
 	topics *kafkaClient.KafkaTopics,
 	messageQueue message_queue.MessageQueue,
-	repo regRepo.RegisterRepository, authRepo authRepository.AuthRepository) RegisterUserCmdHandler {
+	repo regRepo.RegisterRepository,
+	authRepo authRepository.AuthRepository) RegisterUserCmdHandler {
 	return &registerUserCmdHandler{log: log, topics: topics, messageQueue: messageQueue, repo: repo, authRepo: authRepo}
 }
 
