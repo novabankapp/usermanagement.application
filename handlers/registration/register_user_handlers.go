@@ -50,8 +50,9 @@ func (r registerUserCmdHandler) Handle(ctx context.Context,
 	if err2 != nil {
 		return nil, err2
 	}
-	_, err := r.authRepo.Create(ctx, account.UserAccount{
-		UserID: *userId,
+	accountId, _, err := r.authRepo.Create(ctx, account.UserAccount{
+		UserID:    *userId,
+		CreatedAt: time.Now(),
 	}, login.UserLogin{
 		UserID:    *userId,
 		FirstName: command.Dto.FirstName,
@@ -72,6 +73,19 @@ func (r registerUserCmdHandler) Handle(ctx context.Context,
 		msgBytes := res.Bytes()
 
 		_, err2 = r.messageQueue.PublishMessage(ctx, msgBytes, *userId, r.topics.UserCreated.TopicName)
+	}
+	res2 := new(bytes.Buffer)
+	er := json.NewEncoder(res).Encode(struct {
+		AccountId string
+		UserId    string
+	}{
+		AccountId: *accountId,
+		UserId:    *userId,
+	})
+	if er == nil {
+		msgBytes := res2.Bytes()
+
+		_, err = r.messageQueue.PublishMessage(ctx, msgBytes, *userId, r.topics.AccountCreated.TopicName)
 	}
 
 	return userId, err2

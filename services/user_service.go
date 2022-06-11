@@ -18,6 +18,8 @@ type UserService interface {
 	DeleteUser(ctx context.Context, dto dtos.DeleteUserDto) (bool, error)
 	UpdateUser(ctx context.Context, dto dtos.UpdateUserDto) (bool, error)
 	GetUserById(ctx context.Context, id string) (*dtos.GetUserByIdResponse, error)
+	CheckUsername(cxt context.Context, username string) (bool, error)
+	CheckEmail(cxt context.Context, email string) (bool, error)
 	GetUsers(ctx context.Context, query string, orderBy string, page int, pageSize int) (*dtos.GetUsersResponse, error)
 }
 type Repos struct {
@@ -48,6 +50,14 @@ func NewUserService(log logger.Logger,
 	usersQueries := queries.NewUsersQueries(getUserByIdHandler, getUsersHandler)
 
 	return &userService{Commands: usersCommands, Queries: usersQueries, Repos: repos}
+}
+
+func (s *userService) CheckUsername(cxt context.Context, username string) (bool, error) {
+	return s.Repos.AuthRepo.CheckUsername(cxt, username)
+}
+
+func (s *userService) CheckEmail(cxt context.Context, email string) (bool, error) {
+	return s.Repos.AuthRepo.CheckEmail(cxt, email)
 }
 
 func (s *userService) DeleteUser(ctx context.Context, dto dtos.DeleteUserDto) (bool, error) {
