@@ -2,13 +2,13 @@ package services
 
 import (
 	"context"
+	baseService "github.com/novabankapp/common.application/services/base"
+	"github.com/novabankapp/common.application/services/message_queue"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/commands"
 	"github.com/novabankapp/usermanagement.application/dtos"
 	"github.com/novabankapp/usermanagement.application/queries"
-	baseService "github.com/novabankapp/usermanagement.application/services/base"
-	"github.com/novabankapp/usermanagement.application/services/message_queue"
 	loginDomain "github.com/novabankapp/usermanagement.data/domain/login"
 	authRepository "github.com/novabankapp/usermanagement.data/repositories/auth"
 	"github.com/novabankapp/usermanagement.data/repositories/users"

@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	commonServices "github.com/novabankapp/common.application/services"
+	baseService "github.com/novabankapp/common.application/services/base"
+	"github.com/novabankapp/common.application/services/message_queue"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/common.notifier/sms"
 	registrationCommands "github.com/novabankapp/usermanagement.application/commands/registration"
 	registrationDtos "github.com/novabankapp/usermanagement.application/dtos/registration"
 	registrationHandlers "github.com/novabankapp/usermanagement.application/handlers/registration"
-	"github.com/novabankapp/usermanagement.application/services"
-	baseService "github.com/novabankapp/usermanagement.application/services/base"
-	"github.com/novabankapp/usermanagement.application/services/message_queue"
 	regDomain "github.com/novabankapp/usermanagement.data/domain/registration"
 	authRepository "github.com/novabankapp/usermanagement.data/repositories/auth"
 	"github.com/novabankapp/usermanagement.data/repositories/registration"
@@ -52,7 +52,7 @@ func (u ussdRegistrationService) Register(ctx context.Context, user registration
 	//insert phone verification
 	if result != nil {
 		//To-Do - generate pin and send to phone
-		pin := services.GenerateOTP(5)
+		pin := commonServices.GenerateOTP(5)
 		u.baseService.Create(ctx, regDomain.PhoneVerificationCode{
 			Phone:      user.Phone,
 			Used:       false,
@@ -90,7 +90,7 @@ func (u ussdRegistrationService) VerifyOTP(ctx context.Context, user registratio
 func (u ussdRegistrationService) ResendOTP(ctx context.Context, user registrationDtos.RegisterUserDto) (bool, error) {
 
 	//To-Do - generate pin and send to phone
-	pin := services.GenerateOTP(5)
+	pin := commonServices.GenerateOTP(5)
 	_, err := u.baseService.Create(ctx, regDomain.PhoneVerificationCode{
 		Phone:      user.Phone,
 		Used:       false,

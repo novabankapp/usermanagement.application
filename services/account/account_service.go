@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	baseService "github.com/novabankapp/common.application/services/base"
+	"github.com/novabankapp/common.application/services/message_queue"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
-	baseService "github.com/novabankapp/usermanagement.application/services/base"
-	"github.com/novabankapp/usermanagement.application/services/message_queue"
 	accDomain "github.com/novabankapp/usermanagement.data/domain/account"
 	loginDomain "github.com/novabankapp/usermanagement.data/domain/login"
 )
