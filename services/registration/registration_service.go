@@ -7,6 +7,6 @@ import (
 
 type UserRegistrationService interface {
 	Register(ctx context.Context, user registrationDtos.RegisterUserDto) (*string, error)
-	VerifyOTP(ctx context.Context, user registrationDtos.RegisterUserDto, otp string) (bool, error)
-	ResendOTP(ctx context.Context, user registrationDtos.RegisterUserDto) (bool, error)
+	VerifyOTP(ctx context.Context, channels registrationDtos.VerificationChannels, otp string) (bool, error)
+	ResendOTP(ctx context.Context, channels registrationDtos.VerificationChannels) (bool, error)
 }

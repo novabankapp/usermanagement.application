@@ -18,12 +18,12 @@ func NewGetUserByIdQuery(userID string) *GetUserByIdQuery {
 }
 
 type GetUsersQuery struct {
-	Query    string `json:"query"`
-	Page     int    `json:"page"`
-	PageSize int    `json:"pageSize"`
-	OrderBy  string `json:"orderBy"`
+	Query    *string `json:"query"`
+	Page     int     `json:"page"`
+	PageSize int     `json:"pageSize"`
+	OrderBy  *string `json:"orderBy"`
 }
 
-func NewGetUsersQuery(query string, page int, pageSize int, orderBy string) *GetUsersQuery {
+func NewGetUsersQuery(query *string, page int, pageSize int, orderBy *string) *GetUsersQuery {
 	return &GetUsersQuery{Query: query, Page: page, PageSize: pageSize, OrderBy: orderBy}
 }

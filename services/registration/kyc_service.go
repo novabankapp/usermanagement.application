@@ -104,7 +104,7 @@ func (k kycService) SaveUserDetails(ctx context.Context, details registrationDto
 	} else {
 		re := *r
 		re.HasUserDetails = true
-		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID)
+		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID.String())
 	}
 	val := new(bytes.Buffer)
 	e := json.NewEncoder(val).Encode(results)
@@ -156,7 +156,7 @@ func (k kycService) SaveUserIncome(ctx context.Context, details registrationDtos
 	} else {
 		re := *r
 		re.HasUserIncome = true
-		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID)
+		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID.String())
 	}
 	val := new(bytes.Buffer)
 	e := json.NewEncoder(val).Encode(results)
@@ -210,7 +210,7 @@ func (k kycService) SaveUserIdentification(ctx context.Context, details registra
 	} else {
 		re := *r
 		re.HasUserIdentification = true
-		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID)
+		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID.String())
 	}
 	val := new(bytes.Buffer)
 	e := json.NewEncoder(val).Encode(results)
@@ -264,7 +264,7 @@ func (k kycService) SaveResidenceDetails(ctx context.Context, details registrati
 	} else {
 		re := *r
 		re.HasResidenceDetails = true
-		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID)
+		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID.String())
 	}
 	val := new(bytes.Buffer)
 	e := json.NewEncoder(val).Encode(results)
@@ -314,7 +314,7 @@ func (k kycService) SaveUserEmployment(ctx context.Context, details registration
 	} else {
 		re := *r
 		re.HasUserEmployment = true
-		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID)
+		_, _ = k.kycRepos.kycRepo.Update(ctx, re, re.ID.String())
 	}
 	val := new(bytes.Buffer)
 	e := json.NewEncoder(val).Encode(results)
@@ -369,7 +369,7 @@ func (k kycService) SaveUserContact(ctx context.Context, details registrationDto
 		re := *r
 		_, _ = k.kycRepos.kycRepo.Update(ctx, accDomain.KycCompliant{
 			//HasUserEmployment: true,
-		}, re.ID)
+		}, re.ID.String())
 	}
 	val := new(bytes.Buffer)
 	e := json.NewEncoder(val).Encode(results)

@@ -11,28 +11,30 @@ import (
 	"github.com/novabankapp/usermanagement.data/domain/account"
 	"github.com/novabankapp/usermanagement.data/domain/login"
 	"github.com/novabankapp/usermanagement.data/domain/registration"
-	authRepository "github.com/novabankapp/usermanagement.data/repositories/auth"
-	regRepo "github.com/novabankapp/usermanagement.data/repositories/registration"
 	"time"
 )
+
+type CreateUser func(ctx context.Context, user registration.User) (userId *string, err error)
+type CreateUserLogin func(ctx context.Context, userAccount account.UserAccount, userLogin login.UserLogin) (accountId *string, userId *string, err error)
 
 type RegisterUserCmdHandler interface {
 	Handle(ctx context.Context, command *registrationCommands.RegisterUserCommand) (*string, error)
 }
 type registerUserCmdHandler struct {
-	log          logger.Logger
-	topics       *kafkaClient.KafkaTopics
-	messageQueue message_queue.MessageQueue
-	repo         regRepo.RegisterRepository
-	authRepo     authRepository.AuthRepository
+	log             logger.Logger
+	topics          *kafkaClient.KafkaTopics
+	messageQueue    message_queue.MessageQueue
+	createUser      CreateUser
+	createUserLogin CreateUserLogin
 }
 
 func NewRegisterUserHandler(log logger.Logger,
 	topics *kafkaClient.KafkaTopics,
 	messageQueue message_queue.MessageQueue,
-	repo regRepo.RegisterRepository,
-	authRepo authRepository.AuthRepository) RegisterUserCmdHandler {
-	return &registerUserCmdHandler{log: log, topics: topics, messageQueue: messageQueue, repo: repo, authRepo: authRepo}
+	createUser CreateUser,
+	createUserLogin CreateUserLogin) RegisterUserCmdHandler {
+	return &registerUserCmdHandler{log: log, topics: topics, messageQueue: messageQueue,
+		createUser: createUser, createUserLogin: createUserLogin}
 }
 
 func (r registerUserCmdHandler) Handle(ctx context.Context,
@@ -46,11 +48,11 @@ func (r registerUserCmdHandler) Handle(ctx context.Context,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	userId, err2 := r.repo.Create(ctx, userDto)
+	userId, err2 := r.createUser(ctx, userDto)
 	if err2 != nil {
 		return nil, err2
 	}
-	accountId, _, err := r.authRepo.Create(ctx, account.UserAccount{
+	accountId, _, err := r.createUserLogin(ctx, account.UserAccount{
 		UserID:    *userId,
 		CreatedAt: time.Now(),
 	}, login.UserLogin{

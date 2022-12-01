@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-type webRegistrationService struct {
+type registrationService struct {
 	smsNotifier              sms.SMSService
 	mailNotifier             email.MailService
 	repo                     registration.RegisterRepository
@@ -39,9 +39,11 @@ func NewWebRegistrationService(log logger.Logger,
 	emailVerificationService baseService.RdbmsService[regDomain.EmailVerificationCode],
 	repo registration.RegisterRepository,
 	authRepo authRepository.AuthRepository) UserRegistrationService {
-	regUserHandler := registrationHandlers.NewRegisterUserHandler(log, topics, messageQueue, repo, authRepo)
+	regUserHandler := registrationHandlers.NewRegisterUserHandler(
+		log, topics,
+		messageQueue, repo.Create, authRepo.Create)
 	registerCommands := registrationCommands.NewRegistrationCommands(regUserHandler)
-	return &webRegistrationService{
+	return &registrationService{
 		smsNotifier:              smsNotifier,
 		mailNotifier:             mailNotifier,
 		repo:                     repo,
@@ -52,7 +54,7 @@ func NewWebRegistrationService(log logger.Logger,
 	}
 }
 
-func (w webRegistrationService) Register(ctx context.Context, user registrationDtos.RegisterUserDto) (*string, error) {
+func (w registrationService) Register(ctx context.Context, user registrationDtos.RegisterUserDto) (*string, error) {
 	result, err := w.Commands.RegisterUser.Handle(ctx, registrationCommands.NewRegisterUserCommand(
 		user,
 	))
@@ -84,10 +86,10 @@ func (w webRegistrationService) Register(ctx context.Context, user registrationD
 	return result, err
 }
 
-func (w webRegistrationService) VerifyOTP(ctx context.Context, user registrationDtos.RegisterUserDto, otp string) (bool, error) {
-	if user.VerificationChannel.Sms {
+func (w registrationService) VerifyOTP(ctx context.Context, channels registrationDtos.VerificationChannels, otp string) (bool, error) {
+	if channels.Phone != nil {
 		res, err := w.phoneVerificationService.Get(ctx, 1, 1, &regDomain.PhoneVerificationCode{
-			Phone: user.Phone,
+			Phone: *channels.Phone,
 			Code:  otp,
 			Used:  false,
 		}, "")
@@ -104,9 +106,9 @@ func (w webRegistrationService) VerifyOTP(ctx context.Context, user registration
 			return true, nil
 		}
 	}
-	if user.VerificationChannel.Email {
+	if channels.Email != nil {
 		res, err := w.emailVerificationService.Get(ctx, 1, 1, &regDomain.EmailVerificationCode{
-			Email: user.Email,
+			Email: *channels.Email,
 			Code:  otp,
 			Used:  false,
 		}, "")
@@ -126,26 +128,26 @@ func (w webRegistrationService) VerifyOTP(ctx context.Context, user registration
 	return false, errors.New("code not found")
 }
 
-func (w webRegistrationService) ResendOTP(ctx context.Context, user registrationDtos.RegisterUserDto) (bool, error) {
+func (w registrationService) ResendOTP(ctx context.Context, channels registrationDtos.VerificationChannels) (bool, error) {
 	//To-Do - generate pin and send to phone
 	pin := commonServices.GenerateOTP(5)
-	if user.VerificationChannel.Sms {
+	if channels.Phone != nil {
 		w.phoneVerificationService.Create(ctx, regDomain.PhoneVerificationCode{
-			Phone:      user.Phone,
+			Phone:      *channels.Phone,
 			Used:       false,
 			Code:       pin,
 			ExpiryDate: time.Now().Add(time.Minute * 30),
 		})
-		w.smsNotifier.SendSMS(user.Phone, fmt.Sprintf("Your One time pin is %s", pin))
+		w.smsNotifier.SendSMS(*channels.Phone, fmt.Sprintf("Your One time pin is %s", pin))
 	}
-	if user.VerificationChannel.Email {
+	if channels.Email != nil {
 		w.emailVerificationService.Create(ctx, regDomain.EmailVerificationCode{
-			Email:      user.Email,
+			Email:      *channels.Email,
 			Used:       false,
 			Code:       pin,
 			ExpiryDate: time.Now().Add(time.Minute * 30),
 		})
-		dest := []string{user.Email}
+		dest := []string{*channels.Email}
 		w.mailNotifier.SendEmail(dest, fmt.Sprintf("Your One time pin is %s", pin))
 	}
 

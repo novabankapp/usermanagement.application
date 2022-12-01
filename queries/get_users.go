@@ -2,8 +2,8 @@ package queries
 
 import (
 	"context"
-	"github.com/novabankapp/usermanagement.application/services/message_queue"
-
+	"fmt"
+	"github.com/novabankapp/common.application/services/message_queue"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/dtos"
@@ -28,8 +28,10 @@ func NewGetUsersHandler(log logger.Logger,
 }
 
 func (q *getUsersHandler) Handle(ctx context.Context, query *GetUsersQuery) (*dtos.GetUsersResponse, error) {
-
+	fmt.Println("In GetUsers Handle")
+	fmt.Println(ctx)
 	users, err := q.repo.GetUsers(ctx, query.Page, query.PageSize, query.Query, query.OrderBy)
+	fmt.Println(err.Error())
 	if err != nil {
 		return nil, err
 	}

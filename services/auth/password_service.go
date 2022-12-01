@@ -6,14 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	commonServices "github.com/novabankapp/common.application/services"
 	baseService "github.com/novabankapp/common.application/services/base"
+	"github.com/novabankapp/common.application/services/message_queue"
+	"github.com/novabankapp/common.application/utilities"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.notifier/email"
 	"github.com/novabankapp/common.notifier/sms"
 	"github.com/novabankapp/usermanagement.application/dtos/authentication"
-	"github.com/novabankapp/usermanagement.application/services"
-	"github.com/novabankapp/usermanagement.application/services/message_queue"
-	"github.com/novabankapp/usermanagement.application/utilities"
 	loginDomain "github.com/novabankapp/usermanagement.data/domain/login"
 	passwordDomain "github.com/novabankapp/usermanagement.data/domain/password"
 	"time"
@@ -61,7 +61,7 @@ func (p passwordService) RecoverPassword(ctx context.Context, dto authentication
 	}
 	var usr = *user
 	if dto.SMS {
-		otp := services.GenerateOTP(6)
+		otp := commonServices.GenerateOTP(6)
 		expiry := time.Now().Add(time.Hour * 5)
 		_, err := p.repos.ChangePasswordPhoneRepo.Create(ctx, passwordDomain.PhonePasswordReset{
 			UserID:     dto.UserId,
@@ -75,8 +75,8 @@ func (p passwordService) RecoverPassword(ctx context.Context, dto authentication
 		return &otp, nil
 	}
 	if dto.Email {
-		otp := services.GenerateOTP(6)
-		hash := services.GenerateSha1Hash(otp)
+		otp := commonServices.GenerateOTP(6)
+		hash := commonServices.GenerateSha1Hash(otp)
 		expiry := time.Now().Add(time.Hour * 5)
 		_, err := p.repos.ChangePasswordEmailRepo.Create(ctx, passwordDomain.EmailPasswordReset{
 			UserID:     dto.UserId,
@@ -132,7 +132,7 @@ func (p passwordService) ChangePassword(ctx context.Context, dto authentication.
 	if e != nil {
 		return false, e
 	}
-	done, err := p.repos.LoginRepo.Update(ctx)
+	done, err := p.repos.LoginRepo.Update(ctx, usr, dto.UserId)
 	if done {
 		val := new(bytes.Buffer)
 		e := json.NewEncoder(val).Encode(struct {

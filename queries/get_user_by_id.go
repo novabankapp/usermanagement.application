@@ -2,10 +2,10 @@ package queries
 
 import (
 	"context"
+	"github.com/novabankapp/common.application/services/message_queue"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/dtos"
-	"github.com/novabankapp/usermanagement.application/services/message_queue"
 	"github.com/novabankapp/usermanagement.data/repositories/users"
 )
 

@@ -5,31 +5,38 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	baseService "github.com/novabankapp/common.application/services/base"
+	"github.com/novabankapp/common.application/services/message_queue"
+	"github.com/novabankapp/common.application/utilities"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/usermanagement.application/dtos"
-	"github.com/novabankapp/usermanagement.application/services"
-	"github.com/novabankapp/usermanagement.application/services/message_queue"
-	"github.com/novabankapp/usermanagement.application/utilities"
 	loginDomain "github.com/novabankapp/usermanagement.data/domain/login"
 	regDomain "github.com/novabankapp/usermanagement.data/domain/registration"
+	authRepository "github.com/novabankapp/usermanagement.data/repositories/auth"
+	"github.com/novabankapp/usermanagement.data/repositories/users"
 )
 
 type UpdateUserCmdHandler interface {
 	Handle(ctx context.Context, command *UpdateUserCommand) (bool, error)
 }
+type Repos struct {
+	LoginRepo baseService.NoSqlService[loginDomain.UserLogin]
+	UsersRepo users.UserRepository
+	AuthRepo  authRepository.AuthRepository
+}
 type updateUserCmdHandler struct {
 	log          logger.Logger
 	messageQueue message_queue.MessageQueue
 	topics       *kafkaClient.KafkaTopics
-	repos        services.Repos
+	repos        Repos
 }
 
 func NewUpdateUserHandler(
 	log logger.Logger,
 	messageQueue message_queue.MessageQueue,
 	topics *kafkaClient.KafkaTopics,
-	repos services.Repos) UpdateUserCmdHandler {
+	repos Repos) UpdateUserCmdHandler {
 	return &updateUserCmdHandler{log: log, messageQueue: messageQueue, topics: topics, repos: repos}
 }
 
@@ -57,7 +64,7 @@ func (c *updateUserCmdHandler) Handle(ctx context.Context, command *UpdateUserCo
 		return false, errors.New("failed to update user")
 
 	}
-	saved, err := c.repos.LoginRepo.Update(ctx, login, login.ID)
+	saved, err := c.repos.LoginRepo.Update(ctx, login, login.ID.String())
 	if err != nil {
 		return false, err
 	}

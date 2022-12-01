@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-type ussdRegistrationService struct {
+type UssdRegistrationService struct {
 	notifier    sms.SMSService
 	repo        registration.RegisterRepository
 	authRepo    authRepository.AuthRepository
@@ -33,10 +33,10 @@ func NewUSSDDRegistrationService(log logger.Logger,
 	messageQueue message_queue.MessageQueue,
 	baseService baseService.RdbmsService[regDomain.PhoneVerificationCode],
 	repo registration.RegisterRepository,
-	authRepo authRepository.AuthRepository) UserRegistrationService {
-	regUserHandler := registrationHandlers.NewRegisterUserHandler(log, topics, messageQueue, repo, authRepo)
+	authRepo authRepository.AuthRepository) UssdRegistrationService {
+	regUserHandler := registrationHandlers.NewRegisterUserHandler(log, topics, messageQueue, repo.Create, authRepo.Create)
 	registerCommands := registrationCommands.NewRegistrationCommands(regUserHandler)
-	return &ussdRegistrationService{
+	return UssdRegistrationService{
 		notifier:    notifier,
 		repo:        repo,
 		authRepo:    authRepo,
@@ -45,7 +45,7 @@ func NewUSSDDRegistrationService(log logger.Logger,
 	}
 }
 
-func (u ussdRegistrationService) Register(ctx context.Context, user registrationDtos.RegisterUserDto) (*string, error) {
+func (u UssdRegistrationService) Register(ctx context.Context, user registrationDtos.RegisterUserDto) (*string, error) {
 	result, err := u.Commands.RegisterUser.Handle(ctx, registrationCommands.NewRegisterUserCommand(
 		user,
 	))
@@ -66,28 +66,31 @@ func (u ussdRegistrationService) Register(ctx context.Context, user registration
 
 }
 
-func (u ussdRegistrationService) VerifyOTP(ctx context.Context, user registrationDtos.RegisterUserDto, otp string) (bool, error) {
-	res, err := u.baseService.Get(ctx, 1, 1, &regDomain.PhoneVerificationCode{
-		Phone: user.Phone,
-		Code:  otp,
-		Used:  false,
-	}, "")
-	if err != nil {
-		return false, err
-	}
-	if res != nil {
-		result := *res
-		ver := result[0]
-		now := time.Now()
-		if ver.ExpiryDate.Before(now) {
-			return false, errors.New("code expired")
+func (u UssdRegistrationService) VerifyOTP(ctx context.Context, channels registrationDtos.VerificationChannels, otp string) (bool, error) {
+	if channels.Phone != nil {
+		res, err := u.baseService.Get(ctx, 1, 1, &regDomain.PhoneVerificationCode{
+			Phone: *channels.Phone,
+			Code:  otp,
+			Used:  false,
+		}, "")
+		if err != nil {
+			return false, err
 		}
-		return true, nil
+		if res != nil {
+			result := *res
+			ver := result[0]
+			now := time.Now()
+			if ver.ExpiryDate.Before(now) {
+				return false, errors.New("code expired")
+			}
+			return true, nil
+		}
+		return false, errors.New("code not found")
 	}
-	return false, errors.New("code not found")
+	return false, errors.New("no verification channel was selected")
 
 }
-func (u ussdRegistrationService) ResendOTP(ctx context.Context, user registrationDtos.RegisterUserDto) (bool, error) {
+func (u UssdRegistrationService) ResendOTP(ctx context.Context, user registrationDtos.RegisterUserDto) (bool, error) {
 
 	//To-Do - generate pin and send to phone
 	pin := commonServices.GenerateOTP(5)
