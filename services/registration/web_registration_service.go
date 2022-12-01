@@ -30,7 +30,7 @@ type registrationService struct {
 	Commands                 registrationCommands.RegistrationCommands
 }
 
-func NewWebRegistrationService(log logger.Logger,
+func NewRegistrationService(log logger.Logger,
 	topics *kafkaClient.KafkaTopics,
 	smsNotifier sms.SMSService,
 	mailNotifier email.MailService,
