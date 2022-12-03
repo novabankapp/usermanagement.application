@@ -10,6 +10,7 @@ import (
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/common.notifier/sms"
+	"github.com/novabankapp/usermanagement.application/commands"
 	registrationCommands "github.com/novabankapp/usermanagement.application/commands/registration"
 	registrationDtos "github.com/novabankapp/usermanagement.application/dtos/registration"
 	registrationHandlers "github.com/novabankapp/usermanagement.application/handlers/registration"
@@ -46,7 +47,7 @@ func NewUSSDDRegistrationService(log logger.Logger,
 }
 
 func (u UssdRegistrationService) Register(ctx context.Context, user registrationDtos.RegisterUserDto) (*string, error) {
-	result, err := u.Commands.RegisterUser.Handle(ctx, registrationCommands.NewRegisterUserCommand(
+	result, err := u.Commands.RegisterUser.Handle(ctx, commands.NewRegisterUserCommand(
 		user,
 	))
 	//insert phone verification

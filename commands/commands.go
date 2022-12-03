@@ -1,6 +1,9 @@
 package commands
 
-import "github.com/novabankapp/usermanagement.application/dtos"
+import (
+	"github.com/novabankapp/usermanagement.application/dtos"
+	registrationDtos "github.com/novabankapp/usermanagement.application/dtos/registration"
+)
 
 type UserCommands struct {
 	CreateUser CreateUserCmdHandler
@@ -45,6 +48,16 @@ type DeleteUserCommand struct {
 
 func NewDeleteUserCommand(dto dtos.DeleteUserDto) *DeleteUserCommand {
 	return &DeleteUserCommand{
+		dto,
+	}
+}
+
+type RegisterUserCommand struct {
+	Dto registrationDtos.RegisterUserDto
+}
+
+func NewRegisterUserCommand(dto registrationDtos.RegisterUserDto) *RegisterUserCommand {
+	return &RegisterUserCommand{
 		dto,
 	}
 }

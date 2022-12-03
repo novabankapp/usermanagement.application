@@ -11,6 +11,7 @@ import (
 	"github.com/novabankapp/common.infrastructure/logger"
 	"github.com/novabankapp/common.notifier/email"
 	"github.com/novabankapp/common.notifier/sms"
+	"github.com/novabankapp/usermanagement.application/commands"
 	registrationCommands "github.com/novabankapp/usermanagement.application/commands/registration"
 	registrationDtos "github.com/novabankapp/usermanagement.application/dtos/registration"
 	registrationHandlers "github.com/novabankapp/usermanagement.application/handlers/registration"
@@ -55,15 +56,15 @@ func NewRegistrationService(log logger.Logger,
 }
 
 func (w registrationService) Register(ctx context.Context, user registrationDtos.RegisterUserDto) (*string, error) {
-	result, err := w.Commands.RegisterUser.Handle(ctx, registrationCommands.NewRegisterUserCommand(
+	result, err := w.Commands.RegisterUser.Handle(ctx, commands.NewRegisterUserCommand(
 		user,
 	))
 	//insert phone verification
 	if result != nil {
 
 		pin := commonServices.GenerateOTP(5)
-
 		if user.VerificationChannel.Sms {
+
 			w.phoneVerificationService.Create(ctx, regDomain.PhoneVerificationCode{
 				Phone:      user.Phone,
 				Used:       false,
@@ -73,6 +74,7 @@ func (w registrationService) Register(ctx context.Context, user registrationDtos
 			w.smsNotifier.SendSMS(user.Phone, fmt.Sprintf("Your One time pin is %s", pin))
 		}
 		if user.VerificationChannel.Email {
+
 			w.emailVerificationService.Create(ctx, regDomain.EmailVerificationCode{
 				Email:      user.Email,
 				Used:       false,

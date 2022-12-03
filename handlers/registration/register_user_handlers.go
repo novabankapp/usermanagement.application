@@ -7,7 +7,7 @@ import (
 	"github.com/novabankapp/common.application/services/message_queue"
 	kafkaClient "github.com/novabankapp/common.infrastructure/kafka"
 	"github.com/novabankapp/common.infrastructure/logger"
-	registrationCommands "github.com/novabankapp/usermanagement.application/commands/registration"
+	commands "github.com/novabankapp/usermanagement.application/commands"
 	"github.com/novabankapp/usermanagement.data/domain/account"
 	"github.com/novabankapp/usermanagement.data/domain/login"
 	"github.com/novabankapp/usermanagement.data/domain/registration"
@@ -18,7 +18,7 @@ type CreateUser func(ctx context.Context, user registration.User) (userId *strin
 type CreateUserLogin func(ctx context.Context, userAccount account.UserAccount, userLogin login.UserLogin) (accountId *string, userId *string, err error)
 
 type RegisterUserCmdHandler interface {
-	Handle(ctx context.Context, command *registrationCommands.RegisterUserCommand) (*string, error)
+	Handle(ctx context.Context, command *commands.RegisterUserCommand) (*string, error)
 }
 type registerUserCmdHandler struct {
 	log             logger.Logger
@@ -38,7 +38,7 @@ func NewRegisterUserHandler(log logger.Logger,
 }
 
 func (r registerUserCmdHandler) Handle(ctx context.Context,
-	command *registrationCommands.RegisterUserCommand) (*string, error) {
+	command *commands.RegisterUserCommand) (*string, error) {
 	userDto := registration.User{
 		FirstName: command.Dto.FirstName,
 		LastName:  command.Dto.LastName,
@@ -66,6 +66,7 @@ func (r registerUserCmdHandler) Handle(ctx context.Context,
 		Pin:       command.Dto.Pin,
 	})
 	if err != nil {
+
 		return nil, err
 	}
 
