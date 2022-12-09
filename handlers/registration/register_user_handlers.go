@@ -78,7 +78,7 @@ func (r registerUserCmdHandler) Handle(ctx context.Context,
 		_, err2 = r.messageQueue.PublishMessage(ctx, msgBytes, *userId, r.topics.UserCreated.TopicName)
 	}
 	res2 := new(bytes.Buffer)
-	er := json.NewEncoder(res).Encode(struct {
+	er := json.NewEncoder(res2).Encode(struct {
 		AccountId string
 		UserId    string
 	}{
